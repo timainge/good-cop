@@ -14,12 +14,24 @@ def resolve_script(tool_input: dict, cwd: str | None, ledger: dict, read_file=No
     `read_file(path) -> str | None` supplies the content: live mode reads disk, import mode
     replays Write/Edit contents. Called once, when the pre_tool event is recorded.
     """
-    for script in ledger_mod.executed_scripts((tool_input or {}).get("command", "")):
-        path = ledger_mod.abspath(script, cwd)
+    for path in ledger_mod.executed_scripts((tool_input or {}).get("command", ""), cwd):
         head = read_file(path) if read_file else None
         return {"path": path, "written_this_session": path in ledger["files_written"],
                 "head": head[:SCRIPT_HEAD] if head else None}
     return None
+
+
+def writes(event: dict) -> list[dict]:
+    """Paths this call writes (Write/Edit file_path, shell redirects/tee/cp), flagged if outside cwd."""
+    inp, cwd = event.get("input") or {}, event.get("cwd")
+    if event.get("tool") == "Bash":
+        paths = ledger_mod.shell_writes(inp.get("command", ""), cwd)
+    elif inp.get("file_path") or inp.get("notebook_path"):
+        paths = [ledger_mod.abspath(inp.get("file_path") or inp["notebook_path"], cwd)]
+    else:
+        return []
+    root = (cwd or "/").rstrip("/") + "/"
+    return [{"path": p, "outside_cwd": not p.startswith(root)} for p in paths]
 
 
 def read_disk(path: str) -> str | None:
@@ -59,7 +71,7 @@ def build_state(event: dict, ledger: dict, summary: dict | None, recent: list[di
     state = {
         "call": {"tool": event.get("tool"), "input": event.get("input"), "cwd": event.get("cwd"),
                  "subagent": bool(event.get("agent_id"))},
-        "resolved": event.get("resolved") or {},
+        "resolved": {**(event.get("resolved") or {}), "writes": writes(event)},
         "ledger": ledger_view,
         "summary": {k: v for k, v in summary.items() if k != "last_event_seq"} if summary else None,
         "recent": [compact(e) for e in recent[-RECENT:]],

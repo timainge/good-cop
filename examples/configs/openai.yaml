@@ -1,0 +1,4 @@
+judge:
+  provider: openai
+  model: gpt-5-mini
+  extra: {reasoning_effort: minimal}

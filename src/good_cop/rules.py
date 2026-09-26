@@ -39,6 +39,12 @@ def evaluate(rules_cfg: dict, state: dict, llm=None, timeout: float = 3.0) -> di
         elif r.get("question"):
             questions[r["id"]] = r["question"]
 
+    # Enforcing and a pattern rule already denies: the model can't change the outcome, skip it.
+    if rules_cfg.get("enforce") and any(
+            results[r["id"]]["p"] >= r.get("threshold", defaults["threshold"])
+            and r.get("action", defaults["action"]) == "deny" for r in selected if r.get("pattern")):
+        questions = {}
+
     latency_ms = None
     if questions:
         t0 = time.monotonic()

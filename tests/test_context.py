@@ -17,3 +17,11 @@ def test_resolve_script():
     r = context.resolve_script({"command": "./deploy.sh prod"}, "/w", led, lambda p: "#!/bin/sh\necho hi")
     assert r == {"path": "/w/deploy.sh", "written_this_session": True, "head": "#!/bin/sh\necho hi"}
     assert context.resolve_script({"command": "ls"}, "/w", led) is None
+
+
+def test_writes():
+    w = context.writes
+    assert w({"tool": "Bash", "cwd": "/w", "input": {"command": "cd ~/x && cat README.md"}}) == []
+    assert w({"tool": "Bash", "cwd": "/w", "input": {"command": "echo hi > /tmp/o.txt; echo > a.txt"}}) == [
+        {"path": "/tmp/o.txt", "outside_cwd": True}, {"path": "/w/a.txt", "outside_cwd": False}]
+    assert w({"tool": "Edit", "cwd": "/w", "input": {"file_path": "/w2/x.py"}}) == [{"path": "/w2/x.py", "outside_cwd": True}]

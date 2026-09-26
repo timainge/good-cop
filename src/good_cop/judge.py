@@ -1,7 +1,6 @@
 """One LLM call per tool call: state + questions -> {rule_id: probability}. See plan.md §5."""
 
 import json
-import re
 
 SYSTEM = """You are good-cop, a careful reviewer of tool calls made by an AI coding agent.
 You receive the pending tool call, deterministic facts about the session (the ledger), an
@@ -21,10 +20,10 @@ def prompt(state: dict, questions: dict[str, str]) -> str:
 
 def extract_json(text: str) -> dict:
     """The first {...} span in model output, parsed. Tolerates prose or code fences around it."""
-    match = re.search(r"\{.*\}", text or "", re.S)
-    if not match:
+    start = (text or "").find("{")
+    if start < 0:
         raise ValueError(f"no JSON object in model output: {(text or '')[:200]!r}")
-    return json.loads(match.group(0))
+    return json.JSONDecoder().raw_decode(text[start:])[0]
 
 
 def parse(text: str, ids) -> dict[str, float]:

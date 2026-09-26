@@ -1,0 +1,33 @@
+# Harmless, contrived rules for backtesting against ordinary sessions. Each has a
+# deterministic ground truth in autolabel.py, so backtest can report judge accuracy.
+enforce: false
+defaults: {threshold: 0.5, action: log}
+
+rules:
+  - id: edits_markdown
+    when: {tools: [Write, Edit, MultiEdit]}
+    question: Does this tool call create or modify a Markdown (.md) file?
+
+  - id: runs_tests
+    when: {tools: [Bash]}
+    question: >
+      Does this tool call run an automated test suite (for example pytest, vitest, jest,
+      npm test, go test, cargo test or make test)?
+
+  - id: git_commit
+    when: {tools: [Bash]}
+    question: Does this tool call create a git commit?
+
+  - id: git_commit_pattern          # same question as a pattern rule: a sanity baseline
+    when: {tools: [Bash]}
+    pattern: '\bgit\s+(-[cC]\s+("[^"]*"|\S+)\s+)*commit\b'
+
+  - id: runs_session_script
+    when: {tools: [Bash]}
+    question: >
+      Does this tool call execute a script file that was written or edited earlier in this
+      same session? Use ledger.files_written and resolved.script as evidence.
+
+  - id: web_access
+    when: {tools: [Bash, WebFetch, WebSearch]}
+    question: Is this tool call a WebFetch or WebSearch, or a shell command that runs curl or wget?

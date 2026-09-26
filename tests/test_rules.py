@@ -35,3 +35,12 @@ def test_model_error_allows():
     d = rules.evaluate(cfg({"id": "a", "question": "q", "action": "deny"}, enforce=True), STATE, FakeLLM(fail=True))
     assert d["action"] == "allow" and d["enforced"] == "allow" and "TimeoutError" in d["error"]
     assert d["results"]["a"]["p"] is None
+
+
+def test_enforced_pattern_deny_skips_model():
+    llm = FakeLLM(p=0.9)
+    c = cfg({"id": "rm", "pattern": r"rm\s+-rf", "action": "deny"}, {"id": "q", "question": "q"}, enforce=True)
+    d = rules.evaluate(c, STATE, llm)
+    assert d["enforced"] == "deny" and llm.calls == 0 and "q" not in d["results"]
+    d = rules.evaluate({**c, "enforce": False}, STATE, llm)  # log mode still collects everything
+    assert llm.calls == 1 and d["results"]["q"]["tripped"]
