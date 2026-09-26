@@ -317,6 +317,7 @@ Findings:
 - `runs_tests` false positives are mostly `npm run lint`/`check`: a rule-wording problem.
 - Default safety rules on 240 real calls: rewording `irreversible` cut trips from 25 to 1 (the one left is a real `git rm`). `outside_workspace` still fires on 49 calls that only *read* sibling repos, even with `resolved.writes` in the state and the question excluding reads. It should become a deterministic rule over `resolved.writes[].outside_cwd`.
 - Live run (headless `claude -p`, Haiku judge on every Bash call, summary on): 51 events, 24 decisions, hook p50 1.7 s / p95 2.6 s, `echo forbidden-canary` denied with the reason shown to Claude, summary within `every` of current, zero errors.
+- Concurrency: 60 tool calls fired as real `good-cop hook` processes, 10 at a time, summary on: 124 events with contiguous unique `seq`, ledger counted all 60 commands, summary caught up to the last event, no stale lock, no errors.
 
 ## Known limits (accepted for the POC)
 
