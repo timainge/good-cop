@@ -1,0 +1,29 @@
+# good-cop config. `good-cop install` copies this to ~/.good-cop/config.yaml.
+
+judge:
+  provider: anthropic                # anthropic | openai | ollama
+  model: claude-haiku-4-5-20251001
+  timeout: 3.0                       # seconds per judge call in live mode
+  backtest_timeout: 60.0
+  # provider: openai
+  # model: gpt-5-mini
+  # base_url: https://api.openai.com/v1     # any OpenAI-compatible server
+  # extra: {reasoning_effort: minimal}      # merged into the request body
+  # provider: ollama
+  # model: qwen2.5:7b-instruct
+  # base_url: http://localhost:11434
+
+summary:
+  enabled: false
+  every: 8                           # events between summary updates
+  provider: ollama
+  model: qwen2.5:7b-instruct
+  timeout: 120.0
+
+redact: auto                         # auto = on for anthropic/openai, off for ollama | true | false
+hook_budget: 5.0                     # hard limit per hook invocation, seconds
+max_state_tokens: 8000               # decision state cap (chars / 4)
+
+# probes:                            # override the built-in environment probes
+#   - {name: git_branch, cmd: "git branch --show-current", trigger: 'git\s+(checkout|switch)\b'}
+#   - {name: aws_profile, env: AWS_PROFILE}

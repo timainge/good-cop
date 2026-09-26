@@ -1,4 +1,4 @@
-# Copy to ~/.good-cop/rules.yaml
+# good-cop rules. `good-cop install` copies this to ~/.good-cop/rules.yaml.
 enforce: false          # false = log only, regardless of rule actions
 defaults: {threshold: 0.6, action: ask}
 
