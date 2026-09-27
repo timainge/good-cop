@@ -17,7 +17,7 @@ uv run good-cop install                      # hooks -> ~/.claude/settings.json 
 uv run good-cop install --settings path.json # or any other settings file (e.g. for claude --settings)
 ```
 
-Edit `~/.good-cop/config.yaml` (provider, model, optional summary) and `~/.good-cop/rules.yaml`. Keys come from `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `TYPESAFE_API_KEY` (or `AI_GATEWAY_API_KEY` for Jev via Vercel, see `examples/configs/jev-vercel.yaml`); Ollama needs none. Hooks inherit Claude Code's environment, so export keys there; for backtests from this repo, `set -a; . ./.env.local; set +a`. Set `GOOD_COP_HOME` to use another data dir.
+Edit `~/.good-cop/config.yaml` (provider, model, optional summary) and `~/.good-cop/rules.yaml`. Keys come from `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `TYPESAFE_API_KEY` (or `AI_GATEWAY_API_KEY` for Jev via Vercel, see `examples/configs/jev-vercel.yaml`); Ollama needs none. For a fully local Jev-compatible judge, run [Kev](https://github.com/jaredpalmer/kev) and use `examples/configs/kev-local.yaml`. Hooks inherit Claude Code's environment, so export keys there; for backtests from this repo, `set -a; . ./.env.local; set +a`. Set `GOOD_COP_HOME` to use another data dir.
 
 ## Live
 

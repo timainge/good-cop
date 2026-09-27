@@ -326,6 +326,34 @@ Findings:
 - Live run (headless `claude -p`, Haiku judge on every Bash call, summary on): 51 events, 24 decisions, hook p50 1.7 s / p95 2.6 s, `echo forbidden-canary` denied with the reason shown to Claude, summary within `every` of current, zero errors.
 - Concurrency: 60 tool calls fired as real `good-cop hook` processes, 10 at a time, summary on: 124 events with contiguous unique `seq`, ledger counted all 60 commands, summary caught up to the last event, no stale lock, no errors.
 
+## Local decision models (review, 2026-09-27)
+
+Candidates from DataCamp's "Top 7 open-source Jev alternatives", judged on: runs on an Apple Silicon Mac, speaks Jev's `/v1/systemone` API (so the `jev` provider works with only a `base_url` change), and accuracy.
+
+| option | what it is | fit |
+|---|---|---|
+| **Kev** (jaredpalmer/kev, Apache-2.0) | LoRA + pointer head on Qwen3.5 0.8B/4B/9B/27B; MLX on Mac | **Chosen.** Jev API, reported accuracy 0.82 vs Jev's 0.86 at 4B |
+| Rizzo Flow | Spark-X2.5 1.7B/4B, letter-logit scoring on llama.cpp | Jev-like API, easy to serve; weaker (0.65 accuracy at 4B) |
+| SemIf | reads option logits from any stock LLM | a baseline we could build over Ollama logprobs; untrained, so weaker |
+| Laya, Von | ~0.3–0.4B ModernBERT encoders with decision heads | small and fast; own SDKs, not Jev's API |
+| NanoJev | Qwen3-0.6B with decision heads | trainable replica; research-grade |
+| Nimble | Qwen3.5-9B LoRA | NVIDIA GPU only |
+
+**Kev-4B prototype** (`examples/configs/kev-local.yaml`, server: `uv run --extra serve python -m kev.serve --run jaredpalmer/kev-4b --port 8009`; bf16 on MLX, M5 24 GB). Same 90 labelled calls as the Ollama comparison, accuracy (precision / recall), Haiku in brackets:
+
+| rule | Kev-4B | (Haiku) |
+|---|---|---|
+| edits_markdown | 0.93 (0.83 / 0.83) | (1.00) |
+| runs_tests | 1.00 (1.00 / 1.00) | (0.95) |
+| git_commit | 0.83 (0.22 / 1.00) | (1.00) |
+| runs_session_script | 0.85 (0.25 / 1.00) | (0.98) |
+| web_access | 0.98 (0.96 / 1.00) | (1.00) |
+
+- Zero errors, recall 1.00 on every rule, clearly better than qwen2.5-7b via Ollama (0.83–0.95, 13 s).
+- Kev's probabilities are flatter (served at temperature 2.41): false positives sit at 0.50–0.77, true positives at 0.79–0.90 for `git_commit`/`runs_session_script`, but `edits_markdown` true positives start at 0.47. Thresholds need per-provider calibration; backtest + labels is how to set them.
+- Latency is ~1 s per 1k state tokens uncached (p50 ~2 s for typical 1.4–3k-token states), ~120 ms when the same state is re-asked (Kev's prefix cache). Viable live within the 3 s judge timeout, but slower than Haiku. Kev-0.8B would be the fast option, less accurate (not yet tried).
+- Setup cost: ~9.3 GB base-model download; unauthenticated Hugging Face downloads stalled twice (set `HF_TOKEN`).
+
 ## Known limits (accepted for the POC)
 
 - Per-call judgement plus a ledger catches ordinary mistakes and indirection, not deliberate concealment.
