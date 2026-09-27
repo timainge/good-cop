@@ -1,6 +1,6 @@
 # FAQ
 
-**Is this a security tool?** No. It's a guardrail against ordinary mistakes and indirection. Hooks are client-side and removable, and judges can be wrong or manipulated by content they read. Put hard limits (credentials, egress, sandboxes) somewhere the agent can't reach. See [use cases](https://github.com/timainge/good-cop/blob/main/docs/use-cases.md).
+**Is this a security tool?** No. It's a guardrail against ordinary mistakes and indirection. Hooks are client-side and removable, and judges can be wrong or manipulated by content they read. Put hard limits (credentials, egress, sandboxes) somewhere the agent can't reach. See [use cases](Use-Cases).
 
 **Will it slow my agent down?** Pattern and fact rules take a few milliseconds. A model judge adds roughly 0.3 s (Jev), 1 s (Haiku) or 2 s (Kev, local) to each call its rules apply to. Scope rules with `when.tools`.
 

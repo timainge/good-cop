@@ -42,4 +42,5 @@ def load_rules(path: str | Path | None = None) -> dict:
     rules.setdefault("enforce", False)
     rules["defaults"] = {"threshold": 0.6, "action": "ask", **(rules.get("defaults") or {})}
     rules.setdefault("rules", [])
+    rules.setdefault("handlers", {})
     return rules

@@ -14,7 +14,7 @@ uv run good-cop backtest <sid…> --rules examples/contrived/rules.yaml --limit 
 
 Set `GOOD_COP_HOME=/some/tmp/dir` to keep dev runs out of `~/.good-cop`.
 
-Findings and write-ups live in `docs/` (results, model strategy, use cases, harnesses); eval run summaries in `evals/runs/` (`evals/run-comparison.sh`, `evals/compare.py`).
+Public-facing docs (guides, results, model strategy, use cases, harness research) live in the GitHub wiki; source is `docs/wiki/`, published with `scripts/publish-wiki.sh`. Keep the README a short landing page that links there. Eval run summaries are in `evals/runs/` (`evals/run-comparison.sh`, `evals/compare.py`, `evals/thresholds.py`).
 
 ## Rules for this codebase
 

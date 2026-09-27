@@ -1,5 +1,10 @@
 # good-cop rules. `good-cop install` copies this to ~/.good-cop/rules.yaml.
 enforce: false          # false = log only, regardless of rule actions
+
+# handlers:              # named side effects for tripped rules (https://github.com/timainge/good-cop/wiki/Handlers)
+#   slack:  {type: command, command: "~/.good-cop/handlers/slack.sh", only: [ask, deny], once_per_session: true}
+#   syslog: {type: command, command: "logger -t good-cop"}
+# (then add `on_trip: [slack]` to a rule, or `on_trip: [syslog]` under defaults)
 defaults: {threshold: 0.6, action: ask}
 
 rules:

@@ -6,7 +6,7 @@ import sys
 import time
 import traceback
 
-from good_cop import config, context, harness, ledger as ledger_mod, probes, rules, store, summary
+from good_cop import config, context, handlers, harness, ledger as ledger_mod, probes, rules, store, summary
 
 EVENT_TYPES = {
     "SessionStart": "session_start",
@@ -108,8 +108,13 @@ def decide(sid: str, event: dict, ledger: dict, events: list[dict], cfg: dict, t
         opts = providers.judge_options(cfg)
     decision = rules.evaluate(rules_cfg, state, **opts)
     decision = {"seq": event["seq"], "ts": store.now(), "tool": event.get("tool"), **decision,
-                "hook_ms": round((time.monotonic() - t0) * 1000)}
+                "handlers": handlers.plan(rules_cfg, decision), "hook_ms": round((time.monotonic() - t0) * 1000)}
     store.append_jsonl(store.session_dir(sid) / "decisions.jsonl", decision)
+    if decision["handlers"]:
+        try:  # side effects never block or break the tool call
+            handlers.dispatch(sid, decision["handlers"], handlers.event_payload(event, decision, rules_cfg), rules_cfg)
+        except Exception:
+            store.log_error(f"handlers:\n{traceback.format_exc()}")
 
     if decision["enforced"] in ("ask", "deny"):
         return {"hookSpecificOutput": {"hookEventName": "PreToolUse",

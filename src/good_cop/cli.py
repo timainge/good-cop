@@ -36,6 +36,10 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--workers", type=int, default=4)
     s.add_argument("--note", help="free-text label saved with the run summary")
     sub.add_parser("evals", help="list saved backtest runs and their metrics")
+    s = sub.add_parser("handler", help="run a named on_trip handler (event JSON on stdin)")
+    s.add_argument("name")
+    s.add_argument("--test", action="store_true", help="send a sample event instead of reading stdin")
+    s.add_argument("--rules")
     s = sub.add_parser("label", help="record a human label for a rule on a tool call")
     s.add_argument("session")
     s.add_argument("seq", type=int)
@@ -64,6 +68,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "backtest":
         from good_cop import backtest
         return backtest.main(args)
+    if args.cmd == "handler":
+        import json
+        from good_cop import config, handlers
+        payload = handlers.SAMPLE if args.test else json.load(sys.stdin)
+        code = handlers.run(args.name, payload, config.load_rules(args.rules))
+        if args.test:
+            print(f"handler {args.name!r} exited {code}" + ("" if code == 0 else "; see ~/.good-cop/errors.log"))
+        return code
     if args.cmd == "evals":
         from good_cop import backtest
         return backtest.evals()

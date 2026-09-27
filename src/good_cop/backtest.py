@@ -5,7 +5,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from good_cop import config, context, ledger as ledger_mod, providers, rules, store, summary
+from good_cop import config, context, handlers, ledger as ledger_mod, providers, rules, store, summary
 
 LABELS = "labels.jsonl"
 
@@ -72,6 +72,8 @@ def run(sessions: list[str], config_paths: list[str | None], rules_path: str | N
         t0 = time.monotonic()
         with ThreadPoolExecutor(workers) as ex:
             decisions = list(ex.map(lambda it: rules.evaluate(rules_cfg, it[2], **opts), items))
+        for d in decisions:  # dry run: which handlers would fire; nothing is executed
+            d["handlers"] = handlers.plan(rules_cfg, d)
         name = opts["llm"].name + (f" -> {opts['escalate']['llm'].name}" if "escalate" in opts else "")
         runs.append({"config": path or "default", "provider": name, "judge": {**jcfg, "escalate": cfg.get("escalate")},
                      "decisions": decisions, "wall_s": round(time.monotonic() - t0, 1)})
@@ -103,7 +105,11 @@ def metrics(recs: list[dict], rule_list: list[dict], labels: dict, wall: dict | 
            "sessions": sorted({r["session"] for r in recs}), "configs": [], "rules": {}}
     for c, rs in by_cfg.items():
         lat = [r["latency_ms"] for r in rs]
-        out["configs"].append({"config": c, "provider": rs[0]["provider"], "calls": len(rs),
+        fired = {}
+        for r in rs:
+            for h in r.get("handlers") or []:
+                fired[h] = fired.get(h, 0) + 1
+        out["configs"].append({"config": c, "provider": rs[0]["provider"], "calls": len(rs), "handlers": fired,
                                "model_calls": sum(1 for x in lat if x is not None),
                                "errors": sum(1 for r in rs if r.get("error")),
                                "p50_ms": pct(lat, .5), "p95_ms": pct(lat, .95),
@@ -143,6 +149,10 @@ def render(m: dict) -> str:
     for c in m["configs"]:
         lines.append(f"{Path(c['config']).name:<28}{c['provider']:<42}{c['model_calls']:>6}{c['errors']:>8}"
                      f"{str(c['p50_ms']):>9}{str(c['p95_ms']):>9}{str(c['wall_s'] or '-'):>8}")
+    for c in m["configs"]:
+        if c.get("handlers"):
+            lines.append(f"  handlers that would fire ({Path(c['config']).name}): "
+                         + ", ".join(f"{k} x{v}" for k, v in c["handlers"].items()))
     lines += ["", "per rule: trips / evaluated; label accuracy (precision, recall) over labelled calls"]
     fmt = lambda v: "-" if v is None else f"{v:.2f}"
     for rid, entry in m["rules"].items():

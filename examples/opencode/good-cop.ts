@@ -1,5 +1,5 @@
 // good-cop for OpenCode (https://opencode.ai/docs/plugins/). UNTESTED: written from the plugin
-// docs and source (docs/harnesses.md); OpenCode wasn't available to capture real payloads.
+// docs and source (https://github.com/timainge/good-cop/wiki/Harness-Research); OpenCode wasn't available to capture real payloads.
 //
 // Install: copy to .opencode/plugins/good-cop.ts (project) or ~/.config/opencode/plugins/.
 // Needs `good-cop` on PATH (or set GOOD_COP_BIN). OpenCode hooks can only block (throw), not ask.

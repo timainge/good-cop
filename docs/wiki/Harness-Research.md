@@ -10,7 +10,7 @@
 | **Codex CLI** | **verified**: real payloads captured (`tests/fixtures/codex/`) and a live `codex exec` run where good-cop denied a command and Codex didn't run it | `good-cop install --harness codex` (then trust with `/hooks`) |
 | Cursor | adapter built from docs, untested (no Cursor CLI here) | `good-cop install --harness cursor`, or Cursor's Claude-hooks compatibility |
 | Copilot | adapter built from docs, untested (Copilot CLI not installed) | `good-cop install --harness copilot` |
-| OpenCode | plugin written from docs, untested | [examples/opencode/good-cop.ts](../examples/opencode/good-cop.ts) |
+| OpenCode | plugin written from docs, untested | [examples/opencode/good-cop.ts](https://github.com/timainge/good-cop/blob/main/examples/opencode/good-cop.ts) |
 
 What the adapters do (`src/good_cop/harness.py`):
 - Translate payloads to Claude's shape, accepting camelCase and snake_case fields.
@@ -103,7 +103,7 @@ These don't replace hooks, but they cover what hooks can't. There is no shared h
 | Shell shim (wrapper first on `PATH` / replaced `SHELL`) | every shell command | absolute-path bypass, no session context, no edits, can't ask |
 | OS sandbox (e.g. Anthropic's `sandbox-runtime`: Seatbelt / bubblewrap + network proxy) [21] | a real filesystem and network boundary | coarse (paths and domains), no per-call intent or explanation |
 
-A sandbox underneath and good-cop's contextual judgement on top is the layering [use-cases.md](use-cases.md) argues for.
+A sandbox underneath and good-cop's contextual judgement on top is the layering [Use Cases](Use-Cases) argues for.
 
 ## Sources
 1. https://blog.jetbrains.com/research/2026/08/ai-coding-agent-adoption-2026/

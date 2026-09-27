@@ -1,6 +1,6 @@
 # Choosing a Judge
 
-Set `judge` in `~/.good-cop/config.yaml`. Measured on our own sessions (anecdotal; [full results](https://github.com/timainge/good-cop/blob/main/docs/results.md)):
+Set `judge` in `~/.good-cop/config.yaml`. Measured on our own sessions (anecdotal; [full results](Results)):
 
 | judge | quality (mean F1) | p50 | cost / 1k calls | private? | config |
 |---|---|---|---|---|---|

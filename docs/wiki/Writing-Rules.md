@@ -42,7 +42,10 @@ Matched against the shell command, or the JSON of the tool input for other tools
 ## Thresholds
 A question rule trips when the judge's probability ≥ threshold. Precedence: the rule's own `threshold`, then the judge's calibrated `judge.threshold` in config, then `defaults.threshold`. LLMs answer near 0/1; decision models return graded probabilities and need a higher threshold (Jev ~0.85–0.9, Kev ~0.7).
 
+## When a rule trips
+`action` decides what the agent sees. To also notify you (Slack, syslog, …), add `on_trip: [handler-name]`. See [[Handlers]].
+
 ## Tips
-- Put exact things in code (`pattern`, `fact`) and judgement in questions. See the [model strategy](https://github.com/timainge/good-cop/blob/main/docs/model-strategy.md).
+- Put exact things in code (`pattern`, `fact`) and judgement in questions. See the [model strategy](Model-Strategy).
 - Scope question rules with `when.tools`: each one adds judge latency to every matching call.
 - Measure before enforcing: [[Backtesting]].

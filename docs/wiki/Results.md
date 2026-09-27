@@ -1,11 +1,11 @@
 # Judge comparison: speed, cost, quality, privacy
 
-*Backtests run 2026-09-27/28 on our own Claude Code transcripts. Anecdotal: one person's sessions, 150 tool calls, contrived rules, and between 2 and 23 positive examples per rule. Treat differences of a few points as noise. Raw run data: [evals/runs/](../evals/runs/); rerun with [evals/run-comparison.sh](../evals/run-comparison.sh), tabulate with [evals/compare.py](../evals/compare.py).*
+*Backtests run 2026-09-27/28 on our own Claude Code transcripts. Anecdotal: one person's sessions, 150 tool calls, contrived rules, and between 2 and 23 positive examples per rule. Treat differences of a few points as noise. Raw run data: [evals/runs/](https://github.com/timainge/good-cop/tree/main/evals/runs); rerun with [evals/run-comparison.sh](https://github.com/timainge/good-cop/blob/main/evals/run-comparison.sh), tabulate with [evals/compare.py](https://github.com/timainge/good-cop/blob/main/evals/compare.py).*
 
 ## Setup
 
 - **Data.** 50 Claude Code transcripts imported with `good-cop import` (~9,700 events). The fixed sample is the first 30 applicable tool calls from each of 5 sessions: 150 calls, mostly Bash, plus Write/Edit and web tools. The state averages 1,738 tokens (max ~4.4k with the LLM prompt).
-- **Rules.** Five harmless yes/no questions whose correct answer can be computed in code ([examples/contrived/](../examples/contrived/)): does this call edit Markdown, run tests, create a git commit, run a script written earlier in the session, or access the web? Contrived so we'd get positives from ordinary sessions, and so ground truth is checkable.
+- **Rules.** Five harmless yes/no questions whose correct answer can be computed in code ([examples/contrived/](https://github.com/timainge/good-cop/tree/main/examples/contrived)): does this call edit Markdown, run tests, create a git commit, run a script written earlier in the session, or access the web? Contrived so we'd get positives from ordinary sessions, and so ground truth is checkable.
 - **Judges.** Same states, same questions, one request per tool call with all applicable questions batched.
 
 | judge | where it runs | how it answers |
@@ -32,7 +32,7 @@ Accuracy per rule; (precision / recall) in brackets; the number of positives in 
 What it shows:
 
 - **Haiku is the best judge here and it's stable.** Three runs on identical inputs differed by at most one call per rule.
-- **Kev-4B and qwen2.5-7b fail in opposite directions.** Kev catches nearly everything (recall 0.95) but over-flags: its probabilities are flatter, and its false positives sit at p 0.5–0.77. A per-rule threshold around 0.8 would remove most of them (see [plan.md](../plan.md#local-decision-models-review-2026-09-27)). qwen misses a quarter of positives. For a guardrail, a miss costs more than a false alarm, so Kev is the better local judge despite the lower mean accuracy.
+- **Kev-4B and qwen2.5-7b fail in opposite directions.** Kev catches nearly everything (recall 0.95) but over-flags: its probabilities are flatter, and its false positives sit at p 0.5–0.77. A per-rule threshold around 0.8 would remove most of them (see [plan.md](https://github.com/timainge/good-cop/blob/main/plan.md#local-decision-models-review-2026-09-27)). qwen misses a quarter of positives. For a guardrail, a miss costs more than a false alarm, so Kev is the better local judge despite the lower mean accuracy.
 - **Jev at the default threshold looks like Kev: it catches nearly everything but over-flags.** Its probabilities are graded rather than near 0/1, so the threshold matters. See [Thresholds](#thresholds): at 0.8–0.9 Jev matches or beats Haiku.
 - **gpt-5-mini over-calls "runs a session script" (precision 0.12) and under-calls tests. Its p95 latency is the tightest of the cloud judges.
 - **Ground truth was the weakest link.** Two rounds of "judge errors" turned out to be label errors, and the judges were right both times:
@@ -43,7 +43,7 @@ What it shows:
 
 ## Thresholds
 
-LLM judges answer with near-0/1 probabilities, so the trip threshold barely changes their results. Decision models return graded probabilities, so the threshold is a real tuning knob. Re-scoring saved probabilities costs nothing ([evals/thresholds.py](../evals/thresholds.py)). Cells are mean F1 / mean recall across the five rules:
+LLM judges answer with near-0/1 probabilities, so the trip threshold barely changes their results. Decision models return graded probabilities, so the threshold is a real tuning knob. Re-scoring saved probabilities costs nothing ([evals/thresholds.py](https://github.com/timainge/good-cop/blob/main/evals/thresholds.py)). Cells are mean F1 / mean recall across the five rules:
 
 | judge | t=0.5 | t=0.7 | t=0.8 | t=0.9 |
 |---|---|---|---|---|
@@ -60,7 +60,7 @@ LLM judges answer with near-0/1 probabilities, so the trip threshold barely chan
 
 ## Criteria: writing rules for a decision model
 
-TypeSafe's guidance is to point questions at state paths and define what yes and no mean (`criteria`). [examples/contrived/rules-criteria.yaml](../examples/contrived/rules-criteria.yaml) rewrites the five rules that way. The definitions include the near-misses we'd seen: reading a test config, a commit mentioned inside a string, lint versus tests. Jev receives them as native noul criteria. Text LLMs get the same definitions appended to the question ("Yes means… / No means…"), so every judge sees the same spec. Mean F1 / mean recall at the default threshold (0.5), before → after:
+TypeSafe's guidance is to point questions at state paths and define what yes and no mean (`criteria`). [examples/contrived/rules-criteria.yaml](https://github.com/timainge/good-cop/blob/main/examples/contrived/rules-criteria.yaml) rewrites the five rules that way. The definitions include the near-misses we'd seen: reading a test config, a commit mentioned inside a string, lint versus tests. Jev receives them as native noul criteria. Text LLMs get the same definitions appended to the question ("Yes means… / No means…"), so every judge sees the same spec. Mean F1 / mean recall at the default threshold (0.5), before → after:
 
 | judge | fixed sample (150 calls) | held-out (450 calls) |
 |---|---|---|
@@ -86,7 +86,7 @@ We kept the criteria. They're the rule's specification, they help the weaker jud
 
 ## Cascade: decision model first, LLM when unsure
 
-`escalate` in the config re-asks a second judge only for answers in an uncertain band. Tested with Jev answering first (trips on its own at ≥ 0.9), re-asking Haiku when 0.5 ≤ p < 0.9 ([examples/configs/jev-cascade.yaml](../examples/configs/jev-cascade.yaml)), using the criteria rules:
+`escalate` in the config re-asks a second judge only for answers in an uncertain band. Tested with Jev answering first (trips on its own at ≥ 0.9), re-asking Haiku when 0.5 ≤ p < 0.9 ([examples/configs/jev-cascade.yaml](https://github.com/timainge/good-cop/blob/main/examples/configs/jev-cascade.yaml)), using the criteria rules:
 
 | setup | fixed: F1 / recall | held-out: F1 / recall | escalated | p50 / p95 |
 |---|---|---|---|---|
@@ -109,7 +109,7 @@ Judge latency per tool call in backtest (all questions batched):
 | **Jev, TypeSafe direct** | **0.29 s** | **0.35 s** | 150 calls in 11 s with 4 workers; ~1.3 s p95 on the 450-call run (larger states) |
 | Jev via Vercel | 0.75–1.0 s per successful call | – | extra hop, and nearly every call was rate-limited |
 
-Live mode's judge timeout is 3 s and the whole hook's budget is 5 s. Jev direct is the only judge fast enough to be unnoticeable per tool call; Haiku and gpt-5-mini fit comfortably; Kev fits at p50 but not p95. The honest fix for latency is smaller state and fewer model calls: route crisp rules to code (see [model-strategy.md](model-strategy.md)).
+Live mode's judge timeout is 3 s and the whole hook's budget is 5 s. Jev direct is the only judge fast enough to be unnoticeable per tool call; Haiku and gpt-5-mini fit comfortably; Kev fits at p50 but not p95. The honest fix for latency is smaller state and fewer model calls: route crisp rules to code (see [Model Strategy](Model-Strategy)).
 
 ## Cost
 
@@ -141,7 +141,7 @@ Jev was the reason for building the `jev` provider, and it's still unmeasured:
 - **US-night retest (2026-09-27 ~13:00–14:30 AEST, Saturday 8–9:30 pm PT):**
   - A probe got 1 of 3 through; ten minutes later 0 of 10.
   - A fixed-sample run with 10 retries per call was still in 429 backoff after 80 minutes, so I stopped it (it saves nothing until it finishes).
-  - A second pass with 2 retries per call got **1 of 150** through. Recorded in [evals/runs/](../evals/runs/) as `jev via vercel (2 retries; errors = 429s)`.
+  - A second pass with 2 retries per call got **1 of 150** through. Recorded in [evals/runs/](https://github.com/timainge/good-cop/tree/main/evals/runs) as `jev via vercel (2 retries; errors = 429s)`.
 - **Sunday retest (2026-09-28 06:26 AEST, Sunday 1:30 pm PT):** probes got 0 of 16 through: fifteen 429s and one 403. The US was awake, so this wasn't the overnight test.
 - **The calls that did succeed** answered in ~0.8 s through Vercel and were correct.
 

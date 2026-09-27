@@ -1,4 +1,4 @@
-"""Merge / remove good-cop hooks in a harness's hook config (with backup). See plan.md §1, docs/harnesses.md."""
+"""Merge / remove good-cop hooks in a harness's hook config (with backup). See plan.md §1, https://github.com/timainge/good-cop/wiki/Harness-Research."""
 
 import json
 import shlex

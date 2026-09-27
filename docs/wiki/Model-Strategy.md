@@ -1,6 +1,6 @@
 # Choosing judges as a ruleset matures
 
-*Large LLMs, small LLMs, decision models, locally trained models and plain code: which one should answer a rule, and does that change as the rules mature? Written 2026-09-27 from good-cop's first evals (see [results.md](results.md)). The evidence is anecdotal: our own sessions, a few hundred tool calls, contrived rules.*
+*Large LLMs, small LLMs, decision models, locally trained models and plain code: which one should answer a rule, and does that change as the rules mature? Written 2026-09-27 from good-cop's first evals (see [Results](Results)). The evidence is anecdotal: our own sessions, a few hundred tool calls, contrived rules.*
 
 ## Short answer
 

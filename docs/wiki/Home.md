@@ -8,12 +8,14 @@
 - [[Getting Started]]: install for Claude Code or Codex in two minutes
 - [[Writing Rules]]: patterns, facts and questions, with criteria
 - [[Choosing a Judge]]: Haiku, Jev, gpt-5-mini, local models; speed, cost, quality, privacy
+- [[Handlers]]: Slack, syslog or anything else when a rule trips
 - [[Backtesting]]: measure a rule on your past sessions before trusting it
 - [[Other Agents]]: Codex, Cursor, Copilot, OpenCode
 - [[FAQ]]
 
-**Deeper reading (in the repo)**
-- [Results: the judge comparison](https://github.com/timainge/good-cop/blob/main/docs/results.md)
-- [Model strategy: LLMs vs decision models vs code](https://github.com/timainge/good-cop/blob/main/docs/model-strategy.md)
-- [Use cases: when good-cop fits](https://github.com/timainge/good-cop/blob/main/docs/use-cases.md)
-- [Design and plan](https://github.com/timainge/good-cop/blob/main/plan.md)
+**Findings and background**
+- [Results: the judge comparison](Results)
+- [Model strategy: LLMs vs decision models vs code](Model-Strategy)
+- [Use cases: when good-cop fits](Use-Cases)
+- [Harness research: Codex, Cursor, Copilot, OpenCode](Harness-Research)
+- [Design and plan (repo)](https://github.com/timainge/good-cop/blob/main/plan.md)

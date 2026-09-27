@@ -1,4 +1,4 @@
-"""Adapters for coding-agent harnesses other than Claude Code. See docs/harnesses.md.
+"""Adapters for coding-agent harnesses other than Claude Code. See https://github.com/timainge/good-cop/wiki/Harness-Research.
 
 Everything inside good-cop speaks Claude Code's hook schema. `to_claude` translates an incoming
 payload into it; `output` translates a decision back into what the harness understands.

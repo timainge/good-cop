@@ -3,7 +3,7 @@
 good-cop is **not a security boundary**. It runs as client-side hooks that the user (or a
 sufficiently capable agent) can edit or remove, and its judges can be wrong or talked around.
 Use it to catch ordinary mistakes and indirection; put hard limits (credentials, network egress,
-sandboxes) somewhere the agent can't reach. See [docs/use-cases.md](docs/use-cases.md).
+sandboxes) somewhere the agent can't reach. See [Use Cases](https://github.com/timainge/good-cop/wiki/Use-Cases).
 
 What good-cop sends where:
 - **Local judges** (Ollama, a Kev server on localhost): nothing leaves the machine.
