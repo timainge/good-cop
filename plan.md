@@ -248,6 +248,7 @@ Backtest:
 
 - `good-cop backtest [session|--all] [--config other.yaml] [--rules other.yaml] [--with-summary]`: rebuild the ledger from events, re-run rules over every recorded PreToolUse, and print a report: per-rule trip rate, agreement with recorded decisions, accuracy against labels (when present), and latency. Writes results to `~/.good-cop/backtests/<timestamp>.jsonl` and never touches session files. **This is the evaluation harness** for comparing providers, models and thresholds.
 - `good-cop label <session> <seq> <rule_id> yes|no`: append a human label to `~/.good-cop/labels.jsonl`.
+- `good-cop evals`: list saved backtest runs with their note, providers, latency and per-rule label accuracy. Every backtest writes `<ts>.jsonl` (each decision) and `<ts>.summary.json` (run metadata: note, git sha, argv, sessions, rules as run, judge configs; plus metrics). `--note` labels a run. Summaries are copied to `evals/runs/` for write-ups.
 - `good-cop import [paths…|--all|--project x]`: convert Claude Code transcripts (`~/.claude/projects/*/*.jsonl`, plus their `subagents/`) into good-cop sessions so sessions recorded before install can be backtested. Hook-shaped payloads go through the same `normalise` as live; script heads come from replayed Write/Edit content; the only probe fact recovered is `git_branch`.
 
 ## Layout

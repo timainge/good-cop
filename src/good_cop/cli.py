@@ -31,6 +31,8 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--with-summary", action="store_true")
     s.add_argument("--limit", type=int, help="max tool calls per session")
     s.add_argument("--workers", type=int, default=4)
+    s.add_argument("--note", help="free-text label saved with the run summary")
+    sub.add_parser("evals", help="list saved backtest runs and their metrics")
     s = sub.add_parser("label", help="record a human label for a rule on a tool call")
     s.add_argument("session")
     s.add_argument("seq", type=int)
@@ -59,6 +61,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "backtest":
         from good_cop import backtest
         return backtest.main(args)
+    if args.cmd == "evals":
+        from good_cop import backtest
+        return backtest.evals()
     if args.cmd == "label":
         from good_cop import backtest
         return backtest.label(args.session, args.seq, args.rule_id, args.answer == "yes")

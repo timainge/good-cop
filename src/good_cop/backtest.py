@@ -73,77 +73,128 @@ def run(sessions: list[str], config_paths: list[str | None], rules_path: str | N
         t0 = time.monotonic()
         with ThreadPoolExecutor(workers) as ex:
             decisions = list(ex.map(lambda it: rules.evaluate(rules_cfg, it[2], llm, timeout), items))
-        runs.append({"config": path or "default", "provider": llm.name, "decisions": decisions,
+        runs.append({"config": path or "default", "provider": llm.name, "judge": jcfg, "decisions": decisions,
                      "wall_s": round(time.monotonic() - t0, 1)})
     return {"items": items, "runs": runs, "rules": rules_cfg}
 
 
-def report(result: dict) -> str:
-    items, runs = result["items"], result["runs"]
-    labels = load_labels()
-    recorded = {}
-    for sid in {it[0] for it in items}:
-        for d in store.read_jsonl(store.session_dir(sid) / "decisions.jsonl"):
-            recorded[(sid, d["seq"])] = d
+def records(result: dict) -> list[dict]:
+    """One flat record per (config, tool call): the unit saved to disk and scored by metrics()."""
+    return [{"config": r["config"], "provider": r["provider"], "session": sid, "seq": e["seq"],
+             "tool": e.get("tool"), **d}
+            for r in result["runs"] for (sid, e, _), d in zip(result["items"], r["decisions"])]
 
-    lines = [f"{len(items)} tool calls from {len({it[0] for it in items})} session(s)", ""]
-    lines.append(f"{'config':<28}{'provider':<42}{'calls':>6}{'errors':>8}{'p50 ms':>9}{'p95 ms':>9}{'wall s':>8}")
-    for r in runs:
-        lat = [d["latency_ms"] for d in r["decisions"]]
-        errs = sum(1 for d in r["decisions"] if d["error"])
-        lines.append(f"{Path(r['config']).name:<28}{r['provider']:<42}{sum(1 for x in lat if x is not None):>6}"
-                     f"{errs:>8}{str(pct(lat, .5)):>9}{str(pct(lat, .95)):>9}{r['wall_s']:>8}")
 
-    lines += ["", "per rule: trips / evaluated; label accuracy (precision, recall) over labelled calls"]
-    for rule in result["rules"]["rules"]:
+def _score(tp, fp, fn, tn) -> dict:
+    n = tp + fp + fn + tn
+    return {"n": n, "tp": tp, "fp": fp, "fn": fn, "tn": tn,
+            "acc": round((tp + tn) / n, 3) if n else None,
+            "precision": round(tp / (tp + fp), 3) if tp + fp else None,
+            "recall": round(tp / (tp + fn), 3) if tp + fn else None}
+
+
+def metrics(recs: list[dict], rule_list: list[dict], labels: dict, wall: dict | None = None) -> dict:
+    """Per-config latency/errors and per-rule trips, label scores and cross-config agreement.
+
+    Works from saved records alone, so old runs can be re-scored against the current labels."""
+    configs = list(dict.fromkeys(r["config"] for r in recs))
+    by_cfg = {c: [r for r in recs if r["config"] == c] for c in configs}
+    out = {"calls": len({(r["session"], r["seq"]) for r in recs}),
+           "sessions": sorted({r["session"] for r in recs}), "configs": [], "rules": {}}
+    for c, rs in by_cfg.items():
+        lat = [r["latency_ms"] for r in rs]
+        out["configs"].append({"config": c, "provider": rs[0]["provider"], "calls": len(rs),
+                               "model_calls": sum(1 for x in lat if x is not None),
+                               "errors": sum(1 for r in rs if r.get("error")),
+                               "p50_ms": pct(lat, .5), "p95_ms": pct(lat, .95),
+                               "wall_s": (wall or {}).get(c)})
+    for rule in rule_list:
         rid = rule["id"]
-        lines.append(f"\n  {rid}  [{'pattern' if rule.get('pattern') else 'model'}]")
-        tripsets = []
-        for r in runs:
-            ev, trips, tp, fp, fn, tn = 0, set(), 0, 0, 0, 0
-            for (sid, e, _), d in zip(items, r["decisions"]):
-                res = d["results"].get(rid)
+        entry = {"kind": "pattern" if rule.get("pattern") else "model", "by_config": {}}
+        trips = {}
+        for c, rs in by_cfg.items():
+            ev, hits, tp, fp, fn, tn = 0, set(), 0, 0, 0, 0
+            for r in rs:
+                res = r["results"].get(rid)
                 if not res or res["p"] is None:  # errored judge calls have no answer: not scored
                     continue
                 ev += 1
                 hit = bool(res.get("tripped"))
                 if hit:
-                    trips.add((sid, e["seq"]))
-                truth = labels.get((sid, e["seq"], rid))
+                    hits.add((r["session"], r["seq"]))
+                truth = labels.get((r["session"], r["seq"], rid))
                 if truth is not None:
                     tp += hit and truth
                     fp += hit and not truth
                     fn += (not hit) and truth
                     tn += (not hit) and (not truth)
-            tripsets.append((trips, ev))
-            n = tp + fp + fn + tn
-            lab = (f"acc {(tp + tn) / n:.2f} (P {tp / (tp + fp) if tp + fp else 0:.2f}, "
-                   f"R {tp / (tp + fn) if tp + fn else 0:.2f}) n={n}") if n else "no labels"
-            lines.append(f"    {Path(r['config']).name:<26}{len(trips):>5} / {ev:<6}{lab}")
-        if len(runs) > 1:
-            a, b = tripsets[0][0], tripsets[1][0]
-            ev = tripsets[0][1]
-            agree = ev - len(a ^ b)
-            lines.append(f"    agreement {runs[0]['provider']} vs {runs[1]['provider']}: {agree}/{ev}")
-        rec = [(k, v) for k, v in recorded.items() if rid in v["results"]]
-        if rec and len(runs) == 1:
-            trips = tripsets[0][0]
-            keys = {(it[0], it[1]["seq"]) for it in items}
-            both = [(k, v) for k, v in rec if k in keys]
-            agree = sum(1 for k, v in both if bool(v["results"][rid].get("tripped")) == (k in trips))
-            lines.append(f"    agreement with recorded live decisions: {agree}/{len(both)}")
+            trips[c] = (hits, ev)
+            entry["by_config"][c] = {"evaluated": ev, "trips": len(hits), **_score(tp, fp, fn, tn)}
+        if len(configs) > 1:
+            (a, ev), (b, _) = trips[configs[0]], trips[configs[1]]
+            entry["agreement"] = {"a": configs[0], "b": configs[1], "agree": ev - len(a ^ b), "of": ev}
+        out["rules"][rid] = entry
+    return out
+
+
+def render(m: dict) -> str:
+    lines = [f"{m['calls']} tool calls from {len(m['sessions'])} session(s)", ""]
+    lines.append(f"{'config':<28}{'provider':<42}{'calls':>6}{'errors':>8}{'p50 ms':>9}{'p95 ms':>9}{'wall s':>8}")
+    for c in m["configs"]:
+        lines.append(f"{Path(c['config']).name:<28}{c['provider']:<42}{c['model_calls']:>6}{c['errors']:>8}"
+                     f"{str(c['p50_ms']):>9}{str(c['p95_ms']):>9}{str(c['wall_s'] or '-'):>8}")
+    lines += ["", "per rule: trips / evaluated; label accuracy (precision, recall) over labelled calls"]
+    fmt = lambda v: "-" if v is None else f"{v:.2f}"
+    for rid, entry in m["rules"].items():
+        lines.append(f"\n  {rid}  [{entry['kind']}]")
+        for c, x in entry["by_config"].items():
+            lab = (f"acc {fmt(x['acc'])} (P {fmt(x['precision'])}, R {fmt(x['recall'])}) n={x['n']}"
+                   if x["n"] else "no labels")
+            lines.append(f"    {Path(c).name:<26}{x['trips']:>5} / {x['evaluated']:<6}{lab}")
+        if "agreement" in entry:
+            a = entry["agreement"]
+            lines.append(f"    agreement {Path(a['a']).name} vs {Path(a['b']).name}: {a['agree']}/{a['of']}")
     return "\n".join(lines)
 
 
-def save(result: dict) -> Path:
-    out = store.ROOT / "backtests" / f"{time.strftime('%Y%m%d-%H%M%S')}.jsonl"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with open(out, "w") as f:
-        for r in result["runs"]:
-            for (sid, e, _), d in zip(result["items"], r["decisions"]):
-                f.write(json.dumps({"config": r["config"], "provider": r["provider"], "session": sid,
-                                    "seq": e["seq"], "tool": e.get("tool"), **d}, default=str) + "\n")
-    return out
+def _git_sha() -> str | None:
+    import subprocess
+    try:
+        r = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=Path(__file__).parent,
+                           capture_output=True, text=True, timeout=2)
+        return r.stdout.strip() or None
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def save(result: dict, meta: dict) -> Path:
+    """Write <ts>.jsonl (every decision) and <ts>.summary.json (run metadata + metrics)."""
+    base = store.ROOT / "backtests" / time.strftime("%Y%m%d-%H%M%S")
+    base.parent.mkdir(parents=True, exist_ok=True)
+    recs = records(result)
+    with open(base.with_suffix(".jsonl"), "w") as f:
+        for r in recs:
+            f.write(json.dumps(r, default=str) + "\n")
+    wall = {r["config"]: r["wall_s"] for r in result["runs"]}
+    summary_doc = {"meta": meta, "metrics": metrics(recs, result["rules"]["rules"], load_labels(), wall)}
+    store.write_json_atomic(base.with_suffix(".summary.json"), summary_doc)
+    return base.with_suffix(".summary.json")
+
+
+def run_meta(args, result: dict) -> dict:
+    import hashlib, sys
+    rules_file = Path(args.rules) if args.rules else None
+    return {
+        "ts": store.now(), "note": args.note, "git_sha": _git_sha(), "argv": sys.argv[1:],
+        "sessions": sorted({it[0] for it in result["items"]}), "limit": args.limit, "workers": args.workers,
+        "with_summary": args.with_summary,
+        "rules_path": str(rules_file) if rules_file else "default",
+        "rules_sha256": hashlib.sha256(rules_file.read_bytes()).hexdigest()[:16] if rules_file else None,
+        "rules": result["rules"]["rules"],
+        "configs": [{"path": r["config"], "provider": r["provider"],
+                     "judge": {k: v for k, v in r["judge"].items() if "key" not in k}} for r in result["runs"]],
+        "labels": sum(1 for _ in store.read_jsonl(store.ROOT / LABELS)),
+    }
 
 
 def main(args) -> int:
@@ -159,6 +210,21 @@ def main(args) -> int:
         print("no sessions to backtest")
         return 1
     result = run(sessions, args.config or [None], args.rules, args.with_summary, args.limit, args.workers)
-    print(report(result))
-    print(f"\nresults: {save(result)}")
+    path = save(result, run_meta(args, result))
+    print(render(store.read_json(path)["metrics"]))
+    print(f"\nsummary: {path}\ndecisions: {path.with_name(path.name.replace('.summary.json', '.jsonl'))}")
+    return 0
+
+
+def evals() -> int:
+    """One line per saved backtest run: when, note, providers, calls, label accuracy per model rule."""
+    for path in sorted((store.ROOT / "backtests").glob("*.summary.json")):
+        doc = store.read_json(path)
+        meta, m = doc["meta"], doc["metrics"]
+        print(f"\n{path.name.removesuffix('.summary.json')}  {meta.get('note') or ''}  "
+              f"[{m['calls']} calls, {len(m['sessions'])} sessions, rules={Path(meta.get('rules_path') or '?').name}]")
+        for c in m["configs"]:
+            accs = " ".join(f"{rid}={x['by_config'][c['config']]['acc']:.2f}" for rid, x in m["rules"].items()
+                            if x["kind"] == "model" and x["by_config"].get(c["config"], {}).get("acc") is not None)
+            print(f"  {c['provider']:<40} p50 {c['p50_ms']}ms  errors {c['errors']:<4} {accs}")
     return 0

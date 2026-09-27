@@ -1,0 +1,337 @@
+{
+  "meta": {
+    "ts": "20260927-093810",
+    "note": "haiku vs gpt-5-mini (minimal reasoning), contrived rules",
+    "backfilled": true,
+    "git_sha": null,
+    "argv": null,
+    "sessions": [
+      "09a17cc0-b508-4353-b7ab-8bf8a1b35e29",
+      "10b0e67f-26ca-4826-82d4-cc5b2c5920ba",
+      "18774b8f-c1c8-4d10-a585-a3191e98ca7c",
+      "3c286050-54ae-49df-9a8b-e0620863acd0",
+      "85a1357b-9a0f-4a6d-b448-800d97807fad",
+      "b31774bb-af2d-4c66-b132-ef6fd0bd5478",
+      "bb46e7b3-1fe7-4e58-9ee4-c830220be737"
+    ],
+    "limit": null,
+    "rules_path": "examples/contrived/rules.yaml",
+    "rules": [
+      {
+        "id": "edits_markdown",
+        "when": {
+          "tools": [
+            "Write",
+            "Edit",
+            "MultiEdit"
+          ]
+        },
+        "question": "Does this tool call create or modify a Markdown (.md) file?"
+      },
+      {
+        "id": "runs_tests",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call run an automated test suite (for example pytest, vitest, jest, npm test, go test, cargo test or make test)?\n"
+      },
+      {
+        "id": "git_commit",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call create a git commit?"
+      },
+      {
+        "id": "git_commit_pattern",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "pattern": "\\bgit\\s+(-[cC]\\s+(\"[^\"]*\"|\\S+)\\s+)*commit\\b"
+      },
+      {
+        "id": "runs_session_script",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call execute a script file that was written or edited earlier in this same session? Use ledger.files_written and resolved.script as evidence.\n"
+      },
+      {
+        "id": "web_access",
+        "when": {
+          "tools": [
+            "Bash",
+            "WebFetch",
+            "WebSearch"
+          ]
+        },
+        "question": "Is this tool call a WebFetch or WebSearch, or a shell command that runs curl or wget?"
+      }
+    ],
+    "configs": [
+      {
+        "path": "examples/configs/anthropic.yaml",
+        "provider": "anthropic:claude-haiku-4-5-20251001"
+      },
+      {
+        "path": "examples/configs/openai.yaml",
+        "provider": "openai:gpt-5-mini"
+      }
+    ],
+    "labels": 16428
+  },
+  "metrics": {
+    "calls": 394,
+    "sessions": [
+      "09a17cc0-b508-4353-b7ab-8bf8a1b35e29",
+      "10b0e67f-26ca-4826-82d4-cc5b2c5920ba",
+      "18774b8f-c1c8-4d10-a585-a3191e98ca7c",
+      "3c286050-54ae-49df-9a8b-e0620863acd0",
+      "85a1357b-9a0f-4a6d-b448-800d97807fad",
+      "b31774bb-af2d-4c66-b132-ef6fd0bd5478",
+      "bb46e7b3-1fe7-4e58-9ee4-c830220be737"
+    ],
+    "configs": [
+      {
+        "config": "examples/configs/anthropic.yaml",
+        "provider": "anthropic:claude-haiku-4-5-20251001",
+        "calls": 394,
+        "model_calls": 394,
+        "errors": 2,
+        "p50_ms": 1323,
+        "p95_ms": 4254,
+        "wall_s": null
+      },
+      {
+        "config": "examples/configs/openai.yaml",
+        "provider": "openai:gpt-5-mini",
+        "calls": 394,
+        "model_calls": 394,
+        "errors": 0,
+        "p50_ms": 1407,
+        "p95_ms": 1846,
+        "wall_s": null
+      }
+    ],
+    "rules": {
+      "edits_markdown": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 50,
+            "trips": 15,
+            "n": 50,
+            "tp": 15,
+            "fp": 0,
+            "fn": 0,
+            "tn": 35,
+            "acc": 1.0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "examples/configs/openai.yaml": {
+            "evaluated": 51,
+            "trips": 17,
+            "n": 51,
+            "tp": 14,
+            "fp": 3,
+            "fn": 1,
+            "tn": 33,
+            "acc": 0.922,
+            "precision": 0.824,
+            "recall": 0.933
+          }
+        },
+        "agreement": {
+          "a": "examples/configs/anthropic.yaml",
+          "b": "examples/configs/openai.yaml",
+          "agree": 46,
+          "of": 50
+        }
+      },
+      "runs_tests": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 306,
+            "trips": 36,
+            "n": 306,
+            "tp": 15,
+            "fp": 21,
+            "fn": 0,
+            "tn": 270,
+            "acc": 0.931,
+            "precision": 0.417,
+            "recall": 1.0
+          },
+          "examples/configs/openai.yaml": {
+            "evaluated": 307,
+            "trips": 19,
+            "n": 307,
+            "tp": 14,
+            "fp": 5,
+            "fn": 1,
+            "tn": 287,
+            "acc": 0.98,
+            "precision": 0.737,
+            "recall": 0.933
+          }
+        },
+        "agreement": {
+          "a": "examples/configs/anthropic.yaml",
+          "b": "examples/configs/openai.yaml",
+          "agree": 287,
+          "of": 306
+        }
+      },
+      "git_commit": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 306,
+            "trips": 12,
+            "n": 306,
+            "tp": 11,
+            "fp": 1,
+            "fn": 0,
+            "tn": 294,
+            "acc": 0.997,
+            "precision": 0.917,
+            "recall": 1.0
+          },
+          "examples/configs/openai.yaml": {
+            "evaluated": 307,
+            "trips": 21,
+            "n": 307,
+            "tp": 11,
+            "fp": 10,
+            "fn": 0,
+            "tn": 286,
+            "acc": 0.967,
+            "precision": 0.524,
+            "recall": 1.0
+          }
+        },
+        "agreement": {
+          "a": "examples/configs/anthropic.yaml",
+          "b": "examples/configs/openai.yaml",
+          "agree": 297,
+          "of": 306
+        }
+      },
+      "git_commit_pattern": {
+        "kind": "pattern",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 307,
+            "trips": 12,
+            "n": 307,
+            "tp": 9,
+            "fp": 3,
+            "fn": 2,
+            "tn": 293,
+            "acc": 0.984,
+            "precision": 0.75,
+            "recall": 0.818
+          },
+          "examples/configs/openai.yaml": {
+            "evaluated": 307,
+            "trips": 12,
+            "n": 307,
+            "tp": 9,
+            "fp": 3,
+            "fn": 2,
+            "tn": 293,
+            "acc": 0.984,
+            "precision": 0.75,
+            "recall": 0.818
+          }
+        },
+        "agreement": {
+          "a": "examples/configs/anthropic.yaml",
+          "b": "examples/configs/openai.yaml",
+          "agree": 307,
+          "of": 307
+        }
+      },
+      "runs_session_script": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 306,
+            "trips": 21,
+            "n": 306,
+            "tp": 10,
+            "fp": 11,
+            "fn": 1,
+            "tn": 284,
+            "acc": 0.961,
+            "precision": 0.476,
+            "recall": 0.909
+          },
+          "examples/configs/openai.yaml": {
+            "evaluated": 307,
+            "trips": 33,
+            "n": 307,
+            "tp": 10,
+            "fp": 23,
+            "fn": 1,
+            "tn": 273,
+            "acc": 0.922,
+            "precision": 0.303,
+            "recall": 0.909
+          }
+        },
+        "agreement": {
+          "a": "examples/configs/anthropic.yaml",
+          "b": "examples/configs/openai.yaml",
+          "agree": 286,
+          "of": 306
+        }
+      },
+      "web_access": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 342,
+            "trips": 55,
+            "n": 342,
+            "tp": 54,
+            "fp": 1,
+            "fn": 0,
+            "tn": 287,
+            "acc": 0.997,
+            "precision": 0.982,
+            "recall": 1.0
+          },
+          "examples/configs/openai.yaml": {
+            "evaluated": 343,
+            "trips": 63,
+            "n": 343,
+            "tp": 52,
+            "fp": 11,
+            "fn": 2,
+            "tn": 278,
+            "acc": 0.962,
+            "precision": 0.825,
+            "recall": 0.963
+          }
+        },
+        "agreement": {
+          "a": "examples/configs/anthropic.yaml",
+          "b": "examples/configs/openai.yaml",
+          "agree": 330,
+          "of": 342
+        }
+      }
+    }
+  }
+}

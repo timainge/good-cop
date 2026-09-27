@@ -1,0 +1,329 @@
+{
+  "meta": {
+    "ts": "20260927-094915",
+    "note": "haiku vs ollama qwen2.5:7b-instruct (M5), contrived rules, subset",
+    "backfilled": true,
+    "git_sha": null,
+    "argv": null,
+    "sessions": [
+      "18774b8f-c1c8-4d10-a585-a3191e98ca7c",
+      "3c286050-54ae-49df-9a8b-e0620863acd0",
+      "bb46e7b3-1fe7-4e58-9ee4-c830220be737"
+    ],
+    "limit": null,
+    "rules_path": "examples/contrived/rules.yaml",
+    "rules": [
+      {
+        "id": "edits_markdown",
+        "when": {
+          "tools": [
+            "Write",
+            "Edit",
+            "MultiEdit"
+          ]
+        },
+        "question": "Does this tool call create or modify a Markdown (.md) file?"
+      },
+      {
+        "id": "runs_tests",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call run an automated test suite (for example pytest, vitest, jest, npm test, go test, cargo test or make test)?\n"
+      },
+      {
+        "id": "git_commit",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call create a git commit?"
+      },
+      {
+        "id": "git_commit_pattern",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "pattern": "\\bgit\\s+(-[cC]\\s+(\"[^\"]*\"|\\S+)\\s+)*commit\\b"
+      },
+      {
+        "id": "runs_session_script",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call execute a script file that was written or edited earlier in this same session? Use ledger.files_written and resolved.script as evidence.\n"
+      },
+      {
+        "id": "web_access",
+        "when": {
+          "tools": [
+            "Bash",
+            "WebFetch",
+            "WebSearch"
+          ]
+        },
+        "question": "Is this tool call a WebFetch or WebSearch, or a shell command that runs curl or wget?"
+      }
+    ],
+    "configs": [
+      {
+        "path": "examples/configs/anthropic.yaml",
+        "provider": "anthropic:claude-haiku-4-5-20251001"
+      },
+      {
+        "path": "examples/configs/ollama.yaml",
+        "provider": "ollama:qwen2.5:7b-instruct"
+      }
+    ],
+    "labels": 16428
+  },
+  "metrics": {
+    "calls": 90,
+    "sessions": [
+      "18774b8f-c1c8-4d10-a585-a3191e98ca7c",
+      "3c286050-54ae-49df-9a8b-e0620863acd0",
+      "bb46e7b3-1fe7-4e58-9ee4-c830220be737"
+    ],
+    "configs": [
+      {
+        "config": "examples/configs/anthropic.yaml",
+        "provider": "anthropic:claude-haiku-4-5-20251001",
+        "calls": 90,
+        "model_calls": 90,
+        "errors": 0,
+        "p50_ms": 1248,
+        "p95_ms": 2001,
+        "wall_s": null
+      },
+      {
+        "config": "examples/configs/ollama.yaml",
+        "provider": "ollama:qwen2.5:7b-instruct",
+        "calls": 90,
+        "model_calls": 90,
+        "errors": 0,
+        "p50_ms": 13292,
+        "p95_ms": 22668,
+        "wall_s": null
+      }
+    ],
+    "rules": {
+      "edits_markdown": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 29,
+            "trips": 6,
+            "n": 29,
+            "tp": 6,
+            "fp": 0,
+            "fn": 0,
+            "tn": 23,
+            "acc": 1.0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "examples/configs/ollama.yaml": {
+            "evaluated": 29,
+            "trips": 5,
+            "n": 29,
+            "tp": 3,
+            "fp": 2,
+            "fn": 3,
+            "tn": 21,
+            "acc": 0.828,
+            "precision": 0.6,
+            "recall": 0.5
+          }
+        },
+        "agreement": {
+          "a": "examples/configs/anthropic.yaml",
+          "b": "examples/configs/ollama.yaml",
+          "agree": 24,
+          "of": 29
+        }
+      },
+      "runs_tests": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 41,
+            "trips": 4,
+            "n": 41,
+            "tp": 2,
+            "fp": 2,
+            "fn": 0,
+            "tn": 37,
+            "acc": 0.951,
+            "precision": 0.5,
+            "recall": 1.0
+          },
+          "examples/configs/ollama.yaml": {
+            "evaluated": 41,
+            "trips": 0,
+            "n": 41,
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "tn": 39,
+            "acc": 0.951,
+            "precision": null,
+            "recall": 0.0
+          }
+        },
+        "agreement": {
+          "a": "examples/configs/anthropic.yaml",
+          "b": "examples/configs/ollama.yaml",
+          "agree": 37,
+          "of": 41
+        }
+      },
+      "git_commit": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 41,
+            "trips": 2,
+            "n": 41,
+            "tp": 2,
+            "fp": 0,
+            "fn": 0,
+            "tn": 39,
+            "acc": 1.0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "examples/configs/ollama.yaml": {
+            "evaluated": 41,
+            "trips": 5,
+            "n": 41,
+            "tp": 2,
+            "fp": 3,
+            "fn": 0,
+            "tn": 36,
+            "acc": 0.927,
+            "precision": 0.4,
+            "recall": 1.0
+          }
+        },
+        "agreement": {
+          "a": "examples/configs/anthropic.yaml",
+          "b": "examples/configs/ollama.yaml",
+          "agree": 38,
+          "of": 41
+        }
+      },
+      "git_commit_pattern": {
+        "kind": "pattern",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 41,
+            "trips": 4,
+            "n": 41,
+            "tp": 2,
+            "fp": 2,
+            "fn": 0,
+            "tn": 37,
+            "acc": 0.951,
+            "precision": 0.5,
+            "recall": 1.0
+          },
+          "examples/configs/ollama.yaml": {
+            "evaluated": 41,
+            "trips": 4,
+            "n": 41,
+            "tp": 2,
+            "fp": 2,
+            "fn": 0,
+            "tn": 37,
+            "acc": 0.951,
+            "precision": 0.5,
+            "recall": 1.0
+          }
+        },
+        "agreement": {
+          "a": "examples/configs/anthropic.yaml",
+          "b": "examples/configs/ollama.yaml",
+          "agree": 41,
+          "of": 41
+        }
+      },
+      "runs_session_script": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 41,
+            "trips": 3,
+            "n": 41,
+            "tp": 2,
+            "fp": 1,
+            "fn": 0,
+            "tn": 38,
+            "acc": 0.976,
+            "precision": 0.667,
+            "recall": 1.0
+          },
+          "examples/configs/ollama.yaml": {
+            "evaluated": 41,
+            "trips": 2,
+            "n": 41,
+            "tp": 1,
+            "fp": 1,
+            "fn": 1,
+            "tn": 38,
+            "acc": 0.951,
+            "precision": 0.5,
+            "recall": 0.5
+          }
+        },
+        "agreement": {
+          "a": "examples/configs/anthropic.yaml",
+          "b": "examples/configs/ollama.yaml",
+          "agree": 38,
+          "of": 41
+        }
+      },
+      "web_access": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 61,
+            "trips": 23,
+            "n": 61,
+            "tp": 23,
+            "fp": 0,
+            "fn": 0,
+            "tn": 38,
+            "acc": 1.0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "examples/configs/ollama.yaml": {
+            "evaluated": 61,
+            "trips": 14,
+            "n": 61,
+            "tp": 14,
+            "fp": 0,
+            "fn": 9,
+            "tn": 38,
+            "acc": 0.852,
+            "precision": 1.0,
+            "recall": 0.609
+          }
+        },
+        "agreement": {
+          "a": "examples/configs/anthropic.yaml",
+          "b": "examples/configs/ollama.yaml",
+          "agree": 52,
+          "of": 61
+        }
+      }
+    }
+  }
+}

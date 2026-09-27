@@ -14,17 +14,22 @@ rules:
 def test_backtest_with_labels(home, fake_llm, capsys):
     sid, _ = transcripts.import_transcript(T)
     write_rules(home, RULES)
-    fake_llm.by_keyword = {"deploy.sh\\n": 0.9}  # json-escaped command text in the state
+    fake_llm.by_keyword = {'"command": "chmod +x deploy.sh': 0.9}  # the call itself, not an escaped `recent` copy
     pres = [e for e in store.read_events(sid) if e["type"] == "pre_tool" and e["tool"] == "Bash"]
     for e in pres:
         backtest.label(sid, e["seq"], "runs_script", "./deploy.sh" in e["input"]["command"])
-    args = SimpleNamespace(all=False, sessions=[sid[:8]], config=None, rules=None,
+    args = SimpleNamespace(all=False, sessions=[sid[:8]], config=None, rules=None, note="t",
                            with_summary=False, limit=None, workers=2)
     assert backtest.main(args) == 0
     out = capsys.readouterr().out
     assert "3 tool calls" in out
     assert "runs_script" in out and "echo  [pattern]" in out
     assert list((home / "backtests").glob("*.jsonl"))
+    doc = store.read_json(next((home / "backtests").glob("*.summary.json")))
+    assert doc["meta"]["note"] == "t" and doc["meta"]["rules"][0]["id"] == "runs_script"
+    rs = doc["metrics"]["rules"]["runs_script"]["by_config"]["default"]
+    assert rs["evaluated"] == 3 and rs["n"] == 3 and rs["recall"] == 1.0
+    assert backtest.evals() == 0 and "runs_script=" in capsys.readouterr().out
 
 
 def test_replay_matches_live_state(home, payloads, fake_llm):
