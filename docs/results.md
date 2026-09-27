@@ -58,6 +58,43 @@ LLM judges answer with near-0/1 probabilities, so the trip threshold barely chan
 - **Kev behaves differently.** Its best is 0.7, it never reaches Jev's F1, and its recall collapses above that. Thresholds are per model, not portable.
 - **Why Haiku scores lower on the held-out sessions:** they contain more judgement calls, such as reading a test config vs. running tests, and scaffolding scripts in a scratch directory.
 
+## Criteria: writing rules for a decision model
+
+TypeSafe's guidance is to point questions at state paths and define what yes and no mean (`criteria`). [examples/contrived/rules-criteria.yaml](../examples/contrived/rules-criteria.yaml) rewrites the five rules that way. The definitions include the near-misses we'd seen: reading a test config, a commit mentioned inside a string, lint versus tests. Jev receives them as native noul criteria. Text LLMs get the same definitions appended to the question ("Yes means… / No means…"), so every judge sees the same spec. Mean F1 / mean recall at the default threshold (0.5), before → after:
+
+| judge | fixed sample (150 calls) | held-out (450 calls) |
+|---|---|---|
+| **Jev** | 0.73 / 0.98 → **0.85 / 0.99** | 0.42 / 0.97 → **0.73 / 0.97** |
+| gpt-5-mini | 0.76 / 0.92 → 0.79 / 0.85 | 0.66 / 1.00 → 0.72 / 1.00 |
+| Haiku 4.5 | 0.90 / 0.99 → 0.89 / 0.99 | 0.62 / 1.00 → 0.57 / 0.92 |
+| Kev-4B | 0.71 / 0.95 → 0.71 / 0.86 (best threshold 0.75 → 0.76) | – |
+| qwen2.5-7b | OLLAMA_ROW | – |
+
+**Jev with criteria at its tuned threshold:**
+
+| sample | t=0.8 | t=0.9 |
+|---|---|---|
+| fixed | 0.90 / 0.95 → **0.97 / 0.95** | 0.85 / 0.77 → **0.95 / 0.92** |
+| held-out | 0.71 / 0.97 → 0.79 / 0.97 | 0.92 / 0.97 → 0.84 / 0.97 |
+
+- **Criteria are a big win for Jev.** Held-out false positives fell from 31 to 3 on `runs_tests` and from 153 to 13 on `runs_session_script`. The gain is largest at the default threshold, so less tuning is needed. On the fixed sample, Jev with criteria is the best judge we've measured (F1 0.97).
+- **For text LLMs, criteria are roughly neutral.** gpt-5-mini gains F1 but loses some recall, reading the "no" definitions strictly. Haiku is unchanged on the fixed sample and slightly down on held-out, by two calls with `curl` buried in long commands. Kev, fine-tuned to imitate Jev, doesn't benefit the way Jev does.
+- **A wording lesson from the first attempt.** Version 1 asked "does this call fetch content from a URL?", with criteria listing WebSearch as yes. Haiku and gpt-5-mini followed the *question*: WebSearch scored 0.00. Jev followed the *criteria*. Keep the question and its criteria consistent. Only v2 numbers are reported above; v1 runs are in `evals/runs/` tagged `criteria-2026-09-28`.
+
+We kept the criteria. They're the rule's specification and cost the LLM judges nothing that matters. good-cop rules take an optional `criteria: {true, false}`.
+
+## Cascade: decision model first, LLM when unsure
+
+`escalate` in the config re-asks a second judge only for answers in an uncertain band. Tested with Jev answering first (trips on its own at ≥ 0.9), re-asking Haiku when 0.5 ≤ p < 0.9 ([examples/configs/jev-cascade.yaml](../examples/configs/jev-cascade.yaml)), using the criteria rules:
+
+| setup | fixed: F1 / recall | held-out: F1 / recall | escalated | p50 / p95 |
+|---|---|---|---|---|
+| Haiku alone | 0.89 / 0.99 | 0.57 / 0.92 | – | 1.1 s / 3.4–3.9 s |
+| Jev alone, t=0.9 | 0.95 / 0.92 | **0.84** / 0.97 | – | **0.29 s** / 0.4–1.3 s |
+| Jev → Haiku cascade | 0.95 / **0.99** | 0.73 / 0.97 | 11% / 3% of calls | 0.29 s / 1.3–2.9 s |
+
+The cascade does what it's designed to do. Escalation is rare, p50 latency stays at Jev's, and on the fixed sample it recovers the recall Jev loses at 0.9. On the held-out sessions, though, Haiku is the weaker judge on exactly the borderline calls (0.57 alone), so escalating to it hurts. **A cascade only helps when the second judge is better on the uncertain cases.** Here, Jev with criteria at ~0.9 is simpler and at least as good. The mechanism stays in good-cop for rules where a stronger second judge exists.
+
 ## Speed
 
 Judge latency per tool call in backtest (all questions batched):
@@ -118,7 +155,7 @@ Two behaviours to know:
 
 ## Takeaways
 
-1. **For live use:** Jev direct, with a threshold of ~0.85 tuned on your labels. It matches Haiku's quality at ~4× lower latency (0.3 s) and ~30× lower cost.
+1. **For live use:** Jev direct, with rules written with `criteria` and `judge.threshold` ~0.85–0.9 tuned on your labels. It matches or beats Haiku's quality at ~4× lower latency (0.3 s) and ~30× lower cost.
 2. **Without tuning:** Haiku 4.5 is the most accurate out of the box and insensitive to threshold; gpt-5-mini is cheaper, with lower quality.
 3. **For private or offline use:** Kev-4B, threshold ~0.7. Expect lower F1.
-4. **For every rule:** move exact facts into code, and keep models for judgement. Label carefully; our labels were wrong more often than our best judge.
+4. **For every rule:** write the question and its yes/no criteria as a spec. Move exact facts into code (`fact:` rules), and keep models for judgement. Label carefully; our labels were wrong more often than our best judge.

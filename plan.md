@@ -376,9 +376,12 @@ Candidates from DataCamp's "Top 7 open-source Jev alternatives", judged on: runs
 
 ### Follow-ups surfaced by the above
 
-- [ ] Per-rule cascade: pattern/ledger check → decision model → large LLM when unsure → `ask` ([model-strategy.md](docs/model-strategy.md#implications-for-good-cop)).
-- [ ] Rules as predicates over state (e.g. `resolved.writes[].outside_cwd`), and per-provider thresholds (Jev ~0.85, Kev ~0.7): add `judge.threshold` to config so a provider switch carries its calibration.
-- [ ] Harness adapters in order: Codex → Cursor → Copilot → OpenCode ([harnesses.md](docs/harnesses.md#proposed-design)).
+- [x] Per-rule cascade: pattern/fact check → decision model → second judge when unsure. Built as `escalate` (config). Measured: rare escalation, p50 unchanged, but it only helps when the second judge is better on the borderline calls. Here Jev with criteria alone was as good or better ([results.md § Cascade](docs/results.md#cascade-decision-model-first-llm-when-unsure)).
+- [x] Rules as predicates over state: `fact:` rules (`equals` / `matches` / `in`, `[]` fans out over lists). The default `outside_workspace` is now `fact: resolved.writes[].outside_cwd`. Per-provider thresholds: `judge.threshold` (a rule's own threshold wins, then the judge's, then the rules default).
+- [x] Rule `criteria` (yes/no definitions): native for Jev, appended for LLMs. A big win for Jev (held-out F1 0.42 → 0.73 at t=0.5), roughly neutral for LLMs ([results.md § Criteria](docs/results.md#criteria-writing-rules-for-a-decision-model)).
+- [x] Harness adapters: Codex verified (captured payloads plus a live deny); Cursor and Copilot built from docs, untested; OpenCode plugin in `examples/opencode/`, untested ([harnesses.md](docs/harnesses.md)).
+- [ ] Capture real Cursor and Copilot payloads once those CLIs are installed, and turn their adapters from "from docs" into "verified".
+- [ ] Shell parser: `ledger.segments` splits on `( ) | ; &&` before handling quotes, so e.g. `sed '/a(b)/p'` can look like a script run. Use `shlex` with punctuation handling that respects quotes.
 -  Defer: A larger, human-labelled sample with real safety rules before drawing firm conclusions.
 - [ ] prepare repo for publishing as experimental, expanded readme with external facing content that explains what/why/how to get started with no assumption of project knowledge
 - [ ] add useful docs to the github wiki

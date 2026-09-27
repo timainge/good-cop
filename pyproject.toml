@@ -1,10 +1,27 @@
 [project]
 name = "good-cop"
 version = "0.1.0"
-description = "Local-first observer and rule checker for Claude Code sessions"
+description = "A second opinion on every tool call your coding agent makes: local-first guardrails for Claude Code and Codex"
 readme = "README.md"
 requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Tim Ainge" }]
+keywords = ["claude-code", "codex", "coding-agents", "guardrails", "hooks", "llm", "jev"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+]
 dependencies = ["httpx>=0.27", "pyyaml>=6"]
+[project.urls]
+Homepage = "https://github.com/timainge/good-cop"
+Issues = "https://github.com/timainge/good-cop/issues"
 
 [project.scripts]
 good-cop = "good_cop.cli:main"

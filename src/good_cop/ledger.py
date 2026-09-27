@@ -30,24 +30,61 @@ def abspath(path: str, cwd: str | None) -> str:
 HEREDOC_RE = re.compile(r"<<-?\s*(['\"]?)(\w+)\1([^\n]*)\n.*?\n\s*\2[ \t]*(?=\n|$)", re.S)
 ASSIGN_RE = re.compile(r"^(?:export\s+)?([A-Za-z_]\w*)=(\S*)$")
 VAR_RE = re.compile(r"\$\{?([A-Za-z_]\w*)\}?")
-REDIRECT_RE = re.compile(r"^\d?>>?(?!&)(.*)$")
+SEPARATORS = {"&&", "||", ";", "|", "&", "(", ")", ";;", "|&", ";&"}
+REDIRECTS = {">", ">>", ">|", "&>", "&>>", "<", "<<<", ">&", "<&"}
+WRITE_REDIRECTS = {">", ">>", ">|", "&>", "&>>"}
 
 
-def segments(command: str, cwd: str | None) -> list[tuple[list[str], str | None]]:
-    """Split a shell command into simple-command token lists, each with its effective cwd.
+def _newlines_to_semicolons(text: str) -> str:
+    """Unquoted newlines separate commands; shlex would treat them as plain whitespace."""
+    out, quote, escaped = [], None, False
+    for ch in text:
+        if escaped:
+            escaped = False
+        elif ch == "\\" and quote != "'":
+            escaped = True
+        elif quote:
+            quote = None if ch == quote else quote
+        elif ch in "'\"":
+            quote = ch
+        elif ch == "\n":
+            ch = ";"
+        out.append(ch)
+    return "".join(out)
 
-    Best effort, not a shell: heredoc bodies are dropped, `cd dir` updates the cwd for later
-    segments, and `VAR=value` assignments made earlier in the command are substituted.
-    """
-    text = HEREDOC_RE.sub(lambda m: m.group(3), command or "")
+
+def _parse(command: str, cwd: str | None) -> list[tuple[list[str], str | None, list[str]]]:
+    """(tokens, cwd, redirect write targets) per simple command. Quote-aware: operators inside
+    quotes (`sed '/a(b)/p'`, `grep 'x|y'`) stay part of their word."""
+    text = _newlines_to_semicolons(HEREDOC_RE.sub(lambda m: m.group(3), command or ""))
+    try:
+        lex = shlex.shlex(text, posix=True, punctuation_chars=True)
+        lex.whitespace_split = True
+        raw = list(lex)
+    except ValueError:  # unbalanced quotes: fall back to whitespace
+        raw = text.split()
+    groups: list[list[str]] = [[]]
+    for t in raw:
+        if t in SEPARATORS:
+            groups.append([])
+        else:
+            groups[-1].append(t)
     env: dict[str, str] = {}
     out = []
-    for segment in re.split(r"&&|\|\||;|\||\n|\(|\)", text):
-        try:
-            tokens = shlex.split(segment, comments=True)
-        except ValueError:
-            tokens = segment.split()
-        tokens = [VAR_RE.sub(lambda m: env.get(m.group(1), m.group(0)), t) for t in tokens]
+    for g in groups:
+        tokens, targets, i = [], [], 0
+        while i < len(g):
+            if g[i] in REDIRECTS:
+                if tokens and tokens[-1].isdigit():  # `2>`: the fd, not an argument
+                    tokens.pop()
+                if g[i] in WRITE_REDIRECTS and i + 1 < len(g):
+                    targets.append(g[i + 1])
+                i += 2
+                continue
+            tokens.append(g[i])
+            i += 1
+        sub = lambda t: VAR_RE.sub(lambda m: env.get(m.group(1), m.group(0)), t)
+        tokens, targets = [sub(t) for t in tokens], [sub(t) for t in targets]
         while tokens and ASSIGN_RE.match(tokens[0]):
             name, value = ASSIGN_RE.match(tokens[0]).groups()
             env[name] = value
@@ -55,9 +92,18 @@ def segments(command: str, cwd: str | None) -> list[tuple[list[str], str | None]
         if tokens[:1] == ["cd"] and len(tokens) > 1:
             cwd = abspath(tokens[1], cwd)
             continue
-        if tokens:
-            out.append((tokens, cwd))
+        if tokens or targets:
+            out.append((tokens, cwd, targets))
     return out
+
+
+def segments(command: str, cwd: str | None) -> list[tuple[list[str], str | None]]:
+    """Split a shell command into simple-command token lists, each with its effective cwd.
+
+    Best effort, not a shell: heredoc bodies are dropped, redirections removed, `cd dir` updates
+    the cwd for later segments, and `VAR=value` assignments earlier in the command are substituted.
+    """
+    return [(tokens, c) for tokens, c, _ in _parse(command, cwd) if tokens]
 
 
 LAUNCHER_ARG_FLAGS = {"--with", "--from", "--python", "-p", "--project", "--directory", "-k", "-s"}
@@ -99,18 +145,13 @@ def executed_scripts(command: str, cwd: str | None = None) -> list[str]:
 def shell_writes(command: str, cwd: str | None = None) -> list[str]:
     """Absolute paths a shell command writes via `>`/`>>`, `tee` or `cp`/`mv`."""
     out = []
-    for tokens, seg_cwd in segments(command, cwd):
-        targets = []
-        for i, t in enumerate(tokens):
-            m = REDIRECT_RE.match(t)
-            if m:
-                targets.append(m.group(1) or (tokens[i + 1] if i + 1 < len(tokens) else ""))
+    for tokens, seg_cwd, targets in _parse(command, cwd):
         prog = _unwrap(tokens)
-        args = [t for t in prog[1:] if not t.startswith("-") and not REDIRECT_RE.match(t)]
+        args = [t for t in prog[1:] if not t.startswith("-")]
         if prog[:1] == ["tee"]:
-            targets += args
+            targets = targets + args
         elif prog[:1] in (["cp"], ["mv"]) and len(args) >= 2:
-            targets.append(args[-1])
+            targets = targets + [args[-1]]
         out += [abspath(p, seg_cwd) for p in targets if p]
     return [p for p in dict.fromkeys(out) if p != "/dev/null" and "$" not in p and "*" not in p]
 

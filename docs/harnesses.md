@@ -1,6 +1,27 @@
 # Extending good-cop to other coding agents
 
-*Research as of 2026-09-27, from official docs and changelogs (sources below). Items marked **unverified** could not be confirmed from an official source. Nothing here is implemented yet.*
+*Research as of 2026-09-27, from official docs and changelogs (sources below). Items marked **unverified** could not be confirmed from an official source.*
+
+**Implementation status (2026-09-28):**
+
+| harness | status | how |
+|---|---|---|
+| Claude Code | verified | `good-cop install` |
+| **Codex CLI** | **verified**: real payloads captured (`tests/fixtures/codex/`) and a live `codex exec` run where good-cop denied a command and Codex didn't run it | `good-cop install --harness codex` (then trust with `/hooks`) |
+| Cursor | adapter built from docs, untested (no Cursor CLI here) | `good-cop install --harness cursor`, or Cursor's Claude-hooks compatibility |
+| Copilot | adapter built from docs, untested (Copilot CLI not installed) | `good-cop install --harness copilot` |
+| OpenCode | plugin written from docs, untested | [examples/opencode/good-cop.ts](../examples/opencode/good-cop.ts) |
+
+What the adapters do (`src/good_cop/harness.py`):
+- Translate payloads to Claude's shape, accepting camelCase and snake_case fields.
+- Map tool names to Claude's (`Shell→Bash`, `bash→Bash`, `view→Read`, …).
+- Treat Codex `apply_patch` as an edit: the ledger records its files, and rules for `Edit`/`Write` apply to it.
+- Translate the decision back, turning `ask` into `deny` with a reason where the harness can't ask.
+
+Codex notes from the capture:
+- Payloads are Claude's schema plus `turn_id` and `model`.
+- `codex exec` needs `--dangerously-bypass-hook-trust` (and `</dev/null`, or it waits on stdin).
+- CLI 0.151 couldn't use the newest default model, so pass `-m`.
 
 ## Which five
 

@@ -60,3 +60,12 @@ def test_unwrap_launchers():
     assert f("uv run --quiet python tools/x.py", "/w") == ["/w/tools/x.py"]
     assert f("uv run --with rich python y.py", "/w") == ["/w/y.py"]
     assert ledger._unwrap(["npx", "-y", "playwright", "test"]) == ["playwright", "test"]
+
+
+def test_quoted_operators_are_not_separators():
+    f = ledger.executed_scripts
+    assert f("sed -n '/app.put(.\\/api\\/x/,/^});/p' server/index.ts", "/w") == []
+    assert f("grep -E 'a|./b.sh' f.txt && ./real.sh", "/w") == ["/w/real.sh"]
+    assert ledger.shell_writes("cp a b 2>/dev/null; echo 'x > y' > out.txt", "/w") == ["/w/b", "/w/out.txt"]
+    assert ledger.shell_writes("echo hi 2>&1 >> log.txt", "/w") == ["/w/log.txt"]
+    assert f("cd sub\n./run.sh", "/w") == ["/w/sub/run.sh"]
