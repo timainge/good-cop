@@ -158,6 +158,8 @@ Details and research: [docs/harnesses.md](docs/harnesses.md).
 
 ## Docs
 
+Task-oriented guides are in the **[wiki](https://github.com/timainge/good-cop/wiki)**. Reference docs:
+
 | | |
 |---|---|
 | [docs/results.md](docs/results.md) | judge comparison: quality, thresholds, criteria, cascade, speed, cost, privacy |
