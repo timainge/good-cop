@@ -8,7 +8,7 @@ REPO="${1:-timainge/good-cop}"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 git clone -q "https://github.com/$REPO.wiki.git" "$TMP/wiki"
-find docs/wiki -name "*.md" ! -name README.md -exec cp {} "$TMP/wiki/" ;
+find docs/wiki -name "*.md" ! -name README.md -exec cp {} "$TMP/wiki/" \;
 cd "$TMP/wiki"
 git add -A
 if git diff --cached --quiet; then echo "wiki already up to date"; exit 0; fi
