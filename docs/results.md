@@ -26,7 +26,7 @@ Accuracy per rule; (precision / recall) in brackets; the number of positives in 
 | gpt-5-mini | 0.93 (0.83/0.83) | 0.95 (0.93/0.77) | 0.99 (0.83/1.00) | 0.86 (0.12/1.00) | 0.99 (0.96/1.00) | 0.945 | 0.92 | 0.76 |
 | qwen2.5-7b (Ollama) | 0.93 (1.00/0.67) | 0.95 (0.93/0.77) | 0.97 (0.62/1.00) | 0.98 (0.50/0.50) | 0.95 (1.00/0.74) | 0.956 | 0.73 | 0.75 |
 | Kev-4B (local) | 0.93 (0.83/0.83) | 0.91 (0.67/0.94) | 0.93 (0.42/1.00) | 0.93 (0.22/1.00) | 0.99 (0.96/1.00) | 0.939 | 0.95 | 0.71 |
-| Jev | see [Jev](#jev) | | | | | | | |
+| Jev | 149 of 150 calls rate-limited (429), so no score; see [Jev](#jev) | | | | | | | |
 
 What it shows:
 
@@ -79,7 +79,10 @@ For scale, our 50 imported sessions contain ~3,200 Bash calls alone. A heavy age
 Jev was the reason for building the `jev` provider, and it's still unmeasured:
 
 - **First attempt (2026-09-27 ~10:30 AEST, US Friday evening):** 89 of 90 calls returned `429 rate_limit_exceeded` ("the upstream provider is currently experiencing high demand"), even with retries.
-- **US-night retest (2026-09-27 ~13:00 AEST, Saturday 8 pm PT):** a probe got 1 of 3 through; ten minutes later 0 of 10. The fixed-sample run with 10 retries per call was still grinding through 429s an hour later. The result is recorded in [evals/runs/](../evals/runs/) as it completes.
+- **US-night retest (2026-09-27 ~13:00–14:30 AEST, Saturday 8–9:30 pm PT):**
+  - A probe got 1 of 3 through; ten minutes later 0 of 10.
+  - A fixed-sample run with 10 retries per call was still in 429 backoff after 80 minutes, so I stopped it (it saves nothing until it finishes).
+  - A second pass with 2 retries per call got **1 of 150** through. Recorded in [evals/runs/](../evals/runs/) as `jev via vercel (2 retries; errors = 429s)`.
 - **The calls that did succeed** answered in ~0.8 s through Vercel and were correct.
 
 TypeSafe's docs say rate limits are "adjusting dynamically" while they add capacity. Until that settles, **Kev-4B is the practical Jev-shaped option**: same API, runs locally, 0.94 mean accuracy with 0.95 recall. It's slower than Jev's advertised latency, but it's available.

@@ -1,0 +1,238 @@
+{
+  "meta": {
+    "ts": "2026-09-27T03:46:58.846+00:00",
+    "note": "comparison-2026-09-27: jev via vercel (2 retries; errors = 429s)",
+    "git_sha": "101b850",
+    "argv": [
+      "backtest",
+      "18774b8f",
+      "3c286050",
+      "bb46e7b3",
+      "85a1357b",
+      "cc2ffdb5",
+      "--rules",
+      "examples/contrived/rules.yaml",
+      "--limit",
+      "30",
+      "--config",
+      "/private/tmp/claude-501/-Users-tim-Projects-good-cop/bb46e7b3-1fe7-4e58-9ee4-c830220be737/scratchpad/jev-quick.yaml",
+      "--workers",
+      "4",
+      "--note",
+      "comparison-2026-09-27: jev via vercel (2 retries; errors = 429s)"
+    ],
+    "sessions": [
+      "18774b8f-c1c8-4d10-a585-a3191e98ca7c",
+      "3c286050-54ae-49df-9a8b-e0620863acd0",
+      "85a1357b-9a0f-4a6d-b448-800d97807fad",
+      "bb46e7b3-1fe7-4e58-9ee4-c830220be737",
+      "cc2ffdb5-3113-40f0-8e9d-2cc59261c03e"
+    ],
+    "limit": 30,
+    "workers": 4,
+    "with_summary": false,
+    "rules_path": "examples/contrived/rules.yaml",
+    "rules_sha256": "e3e143e0652737c3",
+    "rules": [
+      {
+        "id": "edits_markdown",
+        "when": {
+          "tools": [
+            "Write",
+            "Edit",
+            "MultiEdit"
+          ]
+        },
+        "question": "Does this tool call create or modify a Markdown (.md) file?"
+      },
+      {
+        "id": "runs_tests",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call run an automated test suite (for example pytest, vitest, jest, npm test, go test, cargo test or make test)?\n"
+      },
+      {
+        "id": "git_commit",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call create a git commit?"
+      },
+      {
+        "id": "git_commit_pattern",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "pattern": "\\bgit\\s+(-[cC]\\s+(\"[^\"]*\"|\\S+)\\s+)*commit\\b"
+      },
+      {
+        "id": "runs_session_script",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call execute a script file that was written or edited earlier in this same session? Use ledger.files_written and resolved.script as evidence.\n"
+      },
+      {
+        "id": "web_access",
+        "when": {
+          "tools": [
+            "Bash",
+            "WebFetch",
+            "WebSearch"
+          ]
+        },
+        "question": "Is this tool call a WebFetch or WebSearch, or a shell command that runs curl or wget?"
+      }
+    ],
+    "configs": [
+      {
+        "path": "/private/tmp/claude-501/-Users-tim-Projects-good-cop/bb46e7b3-1fe7-4e58-9ee4-c830220be737/scratchpad/jev-quick.yaml",
+        "provider": "jev:jev-latest",
+        "judge": {
+          "provider": "jev",
+          "model": "jev-latest",
+          "timeout": 3.0,
+          "backtest_timeout": 60.0,
+          "backtest_retries": 2,
+          "base_url": "https://ai-gateway.vercel.sh/typesafe"
+        }
+      }
+    ],
+    "labels": 32856
+  },
+  "metrics": {
+    "calls": 150,
+    "sessions": [
+      "18774b8f-c1c8-4d10-a585-a3191e98ca7c",
+      "3c286050-54ae-49df-9a8b-e0620863acd0",
+      "85a1357b-9a0f-4a6d-b448-800d97807fad",
+      "bb46e7b3-1fe7-4e58-9ee4-c830220be737",
+      "cc2ffdb5-3113-40f0-8e9d-2cc59261c03e"
+    ],
+    "configs": [
+      {
+        "config": "/private/tmp/claude-501/-Users-tim-Projects-good-cop/bb46e7b3-1fe7-4e58-9ee4-c830220be737/scratchpad/jev-quick.yaml",
+        "provider": "jev:jev-latest",
+        "calls": 150,
+        "model_calls": 150,
+        "errors": 149,
+        "p50_ms": 4289,
+        "p95_ms": 4540,
+        "wall_s": 163.2
+      }
+    ],
+    "rules": {
+      "edits_markdown": {
+        "kind": "model",
+        "by_config": {
+          "/private/tmp/claude-501/-Users-tim-Projects-good-cop/bb46e7b3-1fe7-4e58-9ee4-c830220be737/scratchpad/jev-quick.yaml": {
+            "evaluated": 0,
+            "trips": 0,
+            "n": 0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "tn": 0,
+            "acc": null,
+            "precision": null,
+            "recall": null
+          }
+        }
+      },
+      "runs_tests": {
+        "kind": "model",
+        "by_config": {
+          "/private/tmp/claude-501/-Users-tim-Projects-good-cop/bb46e7b3-1fe7-4e58-9ee4-c830220be737/scratchpad/jev-quick.yaml": {
+            "evaluated": 1,
+            "trips": 0,
+            "n": 1,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "tn": 1,
+            "acc": 1.0,
+            "precision": null,
+            "recall": null
+          }
+        }
+      },
+      "git_commit": {
+        "kind": "model",
+        "by_config": {
+          "/private/tmp/claude-501/-Users-tim-Projects-good-cop/bb46e7b3-1fe7-4e58-9ee4-c830220be737/scratchpad/jev-quick.yaml": {
+            "evaluated": 1,
+            "trips": 0,
+            "n": 1,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "tn": 1,
+            "acc": 1.0,
+            "precision": null,
+            "recall": null
+          }
+        }
+      },
+      "git_commit_pattern": {
+        "kind": "pattern",
+        "by_config": {
+          "/private/tmp/claude-501/-Users-tim-Projects-good-cop/bb46e7b3-1fe7-4e58-9ee4-c830220be737/scratchpad/jev-quick.yaml": {
+            "evaluated": 101,
+            "trips": 7,
+            "n": 101,
+            "tp": 5,
+            "fp": 2,
+            "fn": 0,
+            "tn": 94,
+            "acc": 0.98,
+            "precision": 0.714,
+            "recall": 1.0
+          }
+        }
+      },
+      "runs_session_script": {
+        "kind": "model",
+        "by_config": {
+          "/private/tmp/claude-501/-Users-tim-Projects-good-cop/bb46e7b3-1fe7-4e58-9ee4-c830220be737/scratchpad/jev-quick.yaml": {
+            "evaluated": 1,
+            "trips": 0,
+            "n": 1,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "tn": 1,
+            "acc": 1.0,
+            "precision": null,
+            "recall": null
+          }
+        }
+      },
+      "web_access": {
+        "kind": "model",
+        "by_config": {
+          "/private/tmp/claude-501/-Users-tim-Projects-good-cop/bb46e7b3-1fe7-4e58-9ee4-c830220be737/scratchpad/jev-quick.yaml": {
+            "evaluated": 1,
+            "trips": 0,
+            "n": 1,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "tn": 1,
+            "acc": 1.0,
+            "precision": null,
+            "recall": null
+          }
+        }
+      }
+    }
+  }
+}
