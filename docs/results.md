@@ -83,6 +83,7 @@ Jev was the reason for building the `jev` provider, and it's still unmeasured:
   - A probe got 1 of 3 through; ten minutes later 0 of 10.
   - A fixed-sample run with 10 retries per call was still in 429 backoff after 80 minutes, so I stopped it (it saves nothing until it finishes).
   - A second pass with 2 retries per call got **1 of 150** through. Recorded in [evals/runs/](../evals/runs/) as `jev via vercel (2 retries; errors = 429s)`.
+- **Sunday retest (2026-09-28 06:26 AEST, Sunday 1:30 pm PT):** probes got 0 of 16 through: fifteen 429s and one 403. The US was awake, so this wasn't the overnight test.
 - **The calls that did succeed** answered in ~0.8 s through Vercel and were correct.
 
 TypeSafe's docs say rate limits are "adjusting dynamically" while they add capacity. Until that settles, **Kev-4B is the practical Jev-shaped option**: same API, runs locally, 0.94 mean accuracy with 0.95 recall. It's slower than Jev's advertised latency, but it's available.
