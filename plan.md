@@ -306,6 +306,8 @@ Each milestone ends with working software and tests. Do them in order. **Status:
 
 ## Results (2026-09-27, our own Claude Code transcripts)
 
+The consolidated comparison (all judges on one fixed sample, speed, cost, quality, privacy) is in [docs/results.md](docs/results.md). The notes below are the first-pass runs.
+
 50 transcripts imported (≈9,700 events, 2.5 s). Contrived harmless rules (`examples/contrived/`) with code-computed ground truth, 394 calls from 7 sessions, accuracy (precision / recall):
 
 | rule | Haiku 4.5 | gpt-5-mini (minimal reasoning) |
@@ -361,3 +363,20 @@ Candidates from DataCamp's "Top 7 open-source Jev alternatives", judged on: runs
 - Hooks are client-side and can be removed by the user.
 - Probabilities are the model's self-reported numbers, not logprobs. Backtest plus labels is how we find out whether they mean anything.
 - Summary quality is best-effort; nothing a rule depends on should live only in the summary.
+
+
+## Next steps
+
+- [x] write up current experiment results and comparison of decision model options in terms of speed, cost, quality and privacy → [docs/results.md](docs/results.md) (fixed 150-call sample through Haiku ×3, gpt-5-mini, qwen2.5-7b, Kev-4B and Jev; reproducible with `evals/run-comparison.sh` + `evals/compare.py`)
+- [x] write a public facing readme for the git repo that explain what it is, findings from initial eval and "getting started" on-ramp for claude code → [README.md](README.md)
+- [x] research and document how we could extend to top 5 coding harnesses → [docs/harnesses.md](docs/harnesses.md) (Claude Code, Copilot, Codex, Cursor, OpenCode; four use Claude-style command hooks)
+- [x] retest with jev when it is night time in USA, hopefully capacity will have improved → retested Saturday ~8 pm PT: still saturated (0–1 in 3 probes succeed; the 150-call run spent most of its time in 429 retries). Outcome in [docs/results.md § Jev](docs/results.md#jev) and `evals/runs/`. Retest again in the US small hours or on a weekday morning.
+- [x] consider, research and write up benefits of large llms, small llms, decision models, locally trained models as the maturity of your ruleset develops and confidence about matching increases and ambiguity decreases. will the flexibility of models always trump static rules or traditional heuristics alone? → [docs/model-strategy.md](docs/model-strategy.md) (no: a per-rule maturity ladder from LLM to decision model to code, with models kept for ambiguity and novelty)
+- [x] what are the use cases for good-cop? when would you want safety guardrails, locally developed and refined rulesets but not enterprise monitoring systems? → [docs/use-cases.md](docs/use-cases.md)
+
+### Follow-ups surfaced by the above
+
+- Per-rule cascade: pattern/ledger check → decision model → large LLM when unsure → `ask` ([model-strategy.md](docs/model-strategy.md#implications-for-good-cop)).
+- Rules as predicates over state (e.g. `resolved.writes[].outside_cwd`), and per-provider thresholds (Kev needs ~0.8).
+- Harness adapters in order: Codex → Cursor → Copilot → OpenCode ([harnesses.md](docs/harnesses.md#proposed-design)).
+- A larger, human-labelled sample with real safety rules before drawing firm conclusions.

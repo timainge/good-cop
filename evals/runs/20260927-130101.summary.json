@@ -1,0 +1,238 @@
+{
+  "meta": {
+    "ts": "2026-09-27T03:01:01.691+00:00",
+    "note": "comparison-2026-09-27: kev-4b local bf16 MLX M5",
+    "git_sha": "b65f48b",
+    "argv": [
+      "backtest",
+      "18774b8f",
+      "3c286050",
+      "bb46e7b3",
+      "85a1357b",
+      "cc2ffdb5",
+      "--rules",
+      "examples/contrived/rules.yaml",
+      "--limit",
+      "30",
+      "--config",
+      "examples/configs/kev-local.yaml",
+      "--workers",
+      "1",
+      "--note",
+      "comparison-2026-09-27: kev-4b local bf16 MLX M5"
+    ],
+    "sessions": [
+      "18774b8f-c1c8-4d10-a585-a3191e98ca7c",
+      "3c286050-54ae-49df-9a8b-e0620863acd0",
+      "85a1357b-9a0f-4a6d-b448-800d97807fad",
+      "bb46e7b3-1fe7-4e58-9ee4-c830220be737",
+      "cc2ffdb5-3113-40f0-8e9d-2cc59261c03e"
+    ],
+    "limit": 30,
+    "workers": 1,
+    "with_summary": false,
+    "rules_path": "examples/contrived/rules.yaml",
+    "rules_sha256": "e3e143e0652737c3",
+    "rules": [
+      {
+        "id": "edits_markdown",
+        "when": {
+          "tools": [
+            "Write",
+            "Edit",
+            "MultiEdit"
+          ]
+        },
+        "question": "Does this tool call create or modify a Markdown (.md) file?"
+      },
+      {
+        "id": "runs_tests",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call run an automated test suite (for example pytest, vitest, jest, npm test, go test, cargo test or make test)?\n"
+      },
+      {
+        "id": "git_commit",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call create a git commit?"
+      },
+      {
+        "id": "git_commit_pattern",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "pattern": "\\bgit\\s+(-[cC]\\s+(\"[^\"]*\"|\\S+)\\s+)*commit\\b"
+      },
+      {
+        "id": "runs_session_script",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call execute a script file that was written or edited earlier in this same session? Use ledger.files_written and resolved.script as evidence.\n"
+      },
+      {
+        "id": "web_access",
+        "when": {
+          "tools": [
+            "Bash",
+            "WebFetch",
+            "WebSearch"
+          ]
+        },
+        "question": "Is this tool call a WebFetch or WebSearch, or a shell command that runs curl or wget?"
+      }
+    ],
+    "configs": [
+      {
+        "path": "examples/configs/kev-local.yaml",
+        "provider": "jev:kev-latest",
+        "judge": {
+          "provider": "jev",
+          "model": "kev-latest",
+          "timeout": 3.0,
+          "backtest_timeout": 60.0,
+          "backtest_retries": 3,
+          "base_url": "http://127.0.0.1:8009"
+        }
+      }
+    ],
+    "labels": 16428
+  },
+  "metrics": {
+    "calls": 150,
+    "sessions": [
+      "18774b8f-c1c8-4d10-a585-a3191e98ca7c",
+      "3c286050-54ae-49df-9a8b-e0620863acd0",
+      "85a1357b-9a0f-4a6d-b448-800d97807fad",
+      "bb46e7b3-1fe7-4e58-9ee4-c830220be737",
+      "cc2ffdb5-3113-40f0-8e9d-2cc59261c03e"
+    ],
+    "configs": [
+      {
+        "config": "examples/configs/kev-local.yaml",
+        "provider": "jev:kev-latest",
+        "calls": 150,
+        "model_calls": 150,
+        "errors": 0,
+        "p50_ms": 1978,
+        "p95_ms": 5371,
+        "wall_s": 355.5
+      }
+    ],
+    "rules": {
+      "edits_markdown": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/kev-local.yaml": {
+            "evaluated": 29,
+            "trips": 6,
+            "n": 29,
+            "tp": 5,
+            "fp": 1,
+            "fn": 1,
+            "tn": 22,
+            "acc": 0.931,
+            "precision": 0.833,
+            "recall": 0.833
+          }
+        }
+      },
+      "runs_tests": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/kev-local.yaml": {
+            "evaluated": 101,
+            "trips": 24,
+            "n": 101,
+            "tp": 10,
+            "fp": 14,
+            "fn": 0,
+            "tn": 77,
+            "acc": 0.861,
+            "precision": 0.417,
+            "recall": 1.0
+          }
+        }
+      },
+      "git_commit": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/kev-local.yaml": {
+            "evaluated": 101,
+            "trips": 12,
+            "n": 101,
+            "tp": 5,
+            "fp": 7,
+            "fn": 0,
+            "tn": 89,
+            "acc": 0.931,
+            "precision": 0.417,
+            "recall": 1.0
+          }
+        }
+      },
+      "git_commit_pattern": {
+        "kind": "pattern",
+        "by_config": {
+          "examples/configs/kev-local.yaml": {
+            "evaluated": 101,
+            "trips": 7,
+            "n": 101,
+            "tp": 5,
+            "fp": 2,
+            "fn": 0,
+            "tn": 94,
+            "acc": 0.98,
+            "precision": 0.714,
+            "recall": 1.0
+          }
+        }
+      },
+      "runs_session_script": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/kev-local.yaml": {
+            "evaluated": 101,
+            "trips": 9,
+            "n": 101,
+            "tp": 2,
+            "fp": 7,
+            "fn": 0,
+            "tn": 92,
+            "acc": 0.931,
+            "precision": 0.222,
+            "recall": 1.0
+          }
+        }
+      },
+      "web_access": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/kev-local.yaml": {
+            "evaluated": 121,
+            "trips": 24,
+            "n": 121,
+            "tp": 23,
+            "fp": 1,
+            "fn": 0,
+            "tn": 97,
+            "acc": 0.992,
+            "precision": 0.958,
+            "recall": 1.0
+          }
+        }
+      }
+    }
+  }
+}

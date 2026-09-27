@@ -1,0 +1,237 @@
+{
+  "meta": {
+    "ts": "2026-09-27T03:21:50.289+00:00",
+    "note": "comparison-2026-09-27: ollama qwen2.5:7b-instruct M5",
+    "git_sha": "b65f48b",
+    "argv": [
+      "backtest",
+      "18774b8f",
+      "3c286050",
+      "bb46e7b3",
+      "85a1357b",
+      "cc2ffdb5",
+      "--rules",
+      "examples/contrived/rules.yaml",
+      "--limit",
+      "30",
+      "--config",
+      "examples/configs/ollama.yaml",
+      "--workers",
+      "1",
+      "--note",
+      "comparison-2026-09-27: ollama qwen2.5:7b-instruct M5"
+    ],
+    "sessions": [
+      "18774b8f-c1c8-4d10-a585-a3191e98ca7c",
+      "3c286050-54ae-49df-9a8b-e0620863acd0",
+      "85a1357b-9a0f-4a6d-b448-800d97807fad",
+      "bb46e7b3-1fe7-4e58-9ee4-c830220be737",
+      "cc2ffdb5-3113-40f0-8e9d-2cc59261c03e"
+    ],
+    "limit": 30,
+    "workers": 1,
+    "with_summary": false,
+    "rules_path": "examples/contrived/rules.yaml",
+    "rules_sha256": "e3e143e0652737c3",
+    "rules": [
+      {
+        "id": "edits_markdown",
+        "when": {
+          "tools": [
+            "Write",
+            "Edit",
+            "MultiEdit"
+          ]
+        },
+        "question": "Does this tool call create or modify a Markdown (.md) file?"
+      },
+      {
+        "id": "runs_tests",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call run an automated test suite (for example pytest, vitest, jest, npm test, go test, cargo test or make test)?\n"
+      },
+      {
+        "id": "git_commit",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call create a git commit?"
+      },
+      {
+        "id": "git_commit_pattern",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "pattern": "\\bgit\\s+(-[cC]\\s+(\"[^\"]*\"|\\S+)\\s+)*commit\\b"
+      },
+      {
+        "id": "runs_session_script",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call execute a script file that was written or edited earlier in this same session? Use ledger.files_written and resolved.script as evidence.\n"
+      },
+      {
+        "id": "web_access",
+        "when": {
+          "tools": [
+            "Bash",
+            "WebFetch",
+            "WebSearch"
+          ]
+        },
+        "question": "Is this tool call a WebFetch or WebSearch, or a shell command that runs curl or wget?"
+      }
+    ],
+    "configs": [
+      {
+        "path": "examples/configs/ollama.yaml",
+        "provider": "ollama:qwen2.5:7b-instruct",
+        "judge": {
+          "provider": "ollama",
+          "model": "qwen2.5:7b-instruct",
+          "timeout": 3.0,
+          "backtest_timeout": 60.0,
+          "backtest_retries": 3
+        }
+      }
+    ],
+    "labels": 32856
+  },
+  "metrics": {
+    "calls": 150,
+    "sessions": [
+      "18774b8f-c1c8-4d10-a585-a3191e98ca7c",
+      "3c286050-54ae-49df-9a8b-e0620863acd0",
+      "85a1357b-9a0f-4a6d-b448-800d97807fad",
+      "bb46e7b3-1fe7-4e58-9ee4-c830220be737",
+      "cc2ffdb5-3113-40f0-8e9d-2cc59261c03e"
+    ],
+    "configs": [
+      {
+        "config": "examples/configs/ollama.yaml",
+        "provider": "ollama:qwen2.5:7b-instruct",
+        "calls": 150,
+        "model_calls": 150,
+        "errors": 0,
+        "p50_ms": 7877,
+        "p95_ms": 15172,
+        "wall_s": 1247.4
+      }
+    ],
+    "rules": {
+      "edits_markdown": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/ollama.yaml": {
+            "evaluated": 29,
+            "trips": 4,
+            "n": 29,
+            "tp": 4,
+            "fp": 0,
+            "fn": 2,
+            "tn": 23,
+            "acc": 0.931,
+            "precision": 1.0,
+            "recall": 0.667
+          }
+        }
+      },
+      "runs_tests": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/ollama.yaml": {
+            "evaluated": 101,
+            "trips": 14,
+            "n": 101,
+            "tp": 13,
+            "fp": 1,
+            "fn": 4,
+            "tn": 83,
+            "acc": 0.95,
+            "precision": 0.929,
+            "recall": 0.765
+          }
+        }
+      },
+      "git_commit": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/ollama.yaml": {
+            "evaluated": 101,
+            "trips": 8,
+            "n": 101,
+            "tp": 5,
+            "fp": 3,
+            "fn": 0,
+            "tn": 93,
+            "acc": 0.97,
+            "precision": 0.625,
+            "recall": 1.0
+          }
+        }
+      },
+      "git_commit_pattern": {
+        "kind": "pattern",
+        "by_config": {
+          "examples/configs/ollama.yaml": {
+            "evaluated": 101,
+            "trips": 7,
+            "n": 101,
+            "tp": 5,
+            "fp": 2,
+            "fn": 0,
+            "tn": 94,
+            "acc": 0.98,
+            "precision": 0.714,
+            "recall": 1.0
+          }
+        }
+      },
+      "runs_session_script": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/ollama.yaml": {
+            "evaluated": 101,
+            "trips": 2,
+            "n": 101,
+            "tp": 1,
+            "fp": 1,
+            "fn": 1,
+            "tn": 98,
+            "acc": 0.98,
+            "precision": 0.5,
+            "recall": 0.5
+          }
+        }
+      },
+      "web_access": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/ollama.yaml": {
+            "evaluated": 121,
+            "trips": 17,
+            "n": 121,
+            "tp": 17,
+            "fp": 0,
+            "fn": 6,
+            "tn": 98,
+            "acc": 0.95,
+            "precision": 1.0,
+            "recall": 0.739
+          }
+        }
+      }
+    }
+  }
+}

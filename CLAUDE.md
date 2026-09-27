@@ -14,6 +14,8 @@ uv run good-cop backtest <sid…> --rules examples/contrived/rules.yaml --limit 
 
 Set `GOOD_COP_HOME=/some/tmp/dir` to keep dev runs out of `~/.good-cop`.
 
+Findings and write-ups live in `docs/` (results, model strategy, use cases, harnesses); eval run summaries in `evals/runs/` (`evals/run-comparison.sh`, `evals/compare.py`).
+
 ## Rules for this codebase
 
 - **Keep it simple.** Small flat modules in `src/good_cop/`, plain functions and dicts, no class hierarchies or plugin systems. The only abstraction is the `LLM` protocol in `providers.py`. If something needs a new layer, change plan.md first.

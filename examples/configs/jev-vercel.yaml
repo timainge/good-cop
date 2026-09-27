@@ -3,3 +3,4 @@ judge:
   model: jev-latest
   base_url: https://ai-gateway.vercel.sh/typesafe
   api_key_env: AI_GATEWAY_API_KEY
+  backtest_retries: 10               # Vercel upstream returns 429 under load
