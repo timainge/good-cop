@@ -1,4 +1,4 @@
-"""Merge / remove good-cop hooks in ~/.claude/settings.json (with backup). See plan.md §1."""
+"""Merge / remove good-cop hooks in a harness's hook config (with backup). See plan.md §1, docs/harnesses.md."""
 
 import json
 import shlex
@@ -9,21 +9,37 @@ from pathlib import Path
 
 from good_cop import config, store
 
-SETTINGS = Path.home() / ".claude" / "settings.json"
-EVENTS = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop"]
+HOME = Path.home()
+# harness -> (default config file, events in that harness's naming, entry layout)
+TARGETS = {
+    "claude": (HOME / ".claude" / "settings.json",
+               ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop"], "grouped"),
+    "codex": (HOME / ".codex" / "hooks.json",
+              ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop"], "grouped"),
+    "cursor": (HOME / ".cursor" / "hooks.json",
+               ["sessionStart", "beforeSubmitPrompt", "preToolUse", "postToolUse", "stop"], "command"),
+    "copilot": (HOME / ".copilot" / "hooks" / "good-cop.json",
+                ["sessionStart", "userPromptSubmitted", "preToolUse", "postToolUse", "agentStop"], "bash"),
+}
 TOOL_EVENTS = {"PreToolUse", "PostToolUse"}
+SETTINGS = TARGETS["claude"][0]
 
 
-def hook_command() -> str:
+def hook_command(harness: str = "claude", event: str | None = None) -> str:
     exe = Path(sys.argv[0]).resolve()
     if exe.name != "good-cop":
         exe = Path(shutil.which("good-cop") or "good-cop")
-    return f"{shlex.quote(str(exe))} hook"
+    cmd = f"{shlex.quote(str(exe))} hook"
+    if harness != "claude":
+        cmd += f" --harness {harness}"
+    if event and TARGETS[harness][2] != "grouped":
+        cmd += f" --event {event}"
+    return cmd
 
 
 def is_ours(hook: dict) -> bool:
-    cmd = hook.get("command", "")
-    return "good-cop" in cmd and cmd.endswith(" hook")
+    cmd = hook.get("command") or hook.get("bash") or ""
+    return "good-cop" in cmd and " hook" in cmd
 
 
 def _load(path: Path) -> dict:
@@ -36,13 +52,16 @@ def _load(path: Path) -> dict:
 def _strip(settings: dict) -> dict:
     hooks = settings.get("hooks", {})
     for event in list(hooks):
-        groups = []
-        for group in hooks[event]:
-            kept = [h for h in group.get("hooks", []) if not is_ours(h)]
-            if kept:
-                groups.append({**group, "hooks": kept})
-        if groups:
-            hooks[event] = groups
+        kept = []
+        for entry in hooks[event]:
+            if "hooks" in entry:  # grouped: {"matcher", "hooks": [...]}
+                inner = [h for h in entry["hooks"] if not is_ours(h)]
+                if inner:
+                    kept.append({**entry, "hooks": inner})
+            elif not is_ours(entry):
+                kept.append(entry)
+        if kept:
+            hooks[event] = kept
         else:
             del hooks[event]
     if not hooks:
@@ -50,26 +69,40 @@ def _strip(settings: dict) -> dict:
     return settings
 
 
-def install(settings_path: str | None = None) -> int:
-    path = Path(settings_path) if settings_path else SETTINGS
+def _entry(harness: str, event: str) -> dict:
+    layout = TARGETS[harness][2]
+    cmd = hook_command(harness, event)
+    if layout == "grouped":
+        group = {"hooks": [{"type": "command", "command": cmd}]}
+        return {"matcher": "*", **group} if event in TOOL_EVENTS else group
+    if layout == "bash":
+        return {"type": "command", "bash": cmd, "timeoutSec": 10}
+    return {"command": cmd, "timeout": 10}
+
+
+def install(settings_path: str | None = None, harness: str = "claude") -> int:
+    default, events, layout = TARGETS[harness]
+    path = Path(settings_path) if settings_path else default
     settings = _strip(_load(path))
-    hook = {"type": "command", "command": hook_command()}
+    if layout != "grouped":
+        settings.setdefault("version", 1)
     hooks = settings.setdefault("hooks", {})
-    for event in EVENTS:
-        group = {"matcher": "*", "hooks": [hook]} if event in TOOL_EVENTS else {"hooks": [hook]}
-        hooks.setdefault(event, []).append(group)
+    for event in events:
+        hooks.setdefault(event, []).append(_entry(harness, event))
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(settings, indent=2) + "\n")
     store.ROOT.mkdir(parents=True, exist_ok=True)
     for name in ("config.yaml", "rules.yaml"):
         if not (store.ROOT / name).exists():
             shutil.copy(config.DEFAULTS_DIR / name, store.ROOT / name)
-    print(f"installed good-cop hooks in {path}; config in {store.ROOT}")
+    print(f"installed good-cop hooks for {harness} in {path}; config in {store.ROOT}")
+    if harness == "codex":
+        print("codex: review and trust the hooks with /hooks (or pass --dangerously-bypass-hook-trust to codex exec)")
     return 0
 
 
-def uninstall(settings_path: str | None = None) -> int:
-    path = Path(settings_path) if settings_path else SETTINGS
+def uninstall(settings_path: str | None = None, harness: str = "claude") -> int:
+    path = Path(settings_path) if settings_path else TARGETS[harness][0]
     if not path.exists():
         return 0
     path.write_text(json.dumps(_strip(_load(path)), indent=2) + "\n")

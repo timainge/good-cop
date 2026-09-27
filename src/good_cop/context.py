@@ -26,6 +26,9 @@ def writes(event: dict) -> list[dict]:
     inp, cwd = event.get("input") or {}, event.get("cwd")
     if event.get("tool") == "Bash":
         paths = ledger_mod.shell_writes(inp.get("command", ""), cwd)
+    elif event.get("tool") == "apply_patch":
+        from good_cop.harness import patch_paths
+        paths = [ledger_mod.abspath(p, cwd) for p in patch_paths(inp.get("command", ""))]
     elif inp.get("file_path") or inp.get("notebook_path"):
         paths = [ledger_mod.abspath(inp.get("file_path") or inp["notebook_path"], cwd)]
     else:

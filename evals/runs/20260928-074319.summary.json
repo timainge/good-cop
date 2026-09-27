@@ -1,0 +1,261 @@
+{
+  "meta": {
+    "ts": "2026-09-27T21:43:19.057+00:00",
+    "note": "cascade-2026-09-28 holdout: jev->haiku",
+    "git_sha": "2e03a37",
+    "argv": [
+      "backtest",
+      "7746dc5b",
+      "fd4f78e5",
+      "5d775dc0",
+      "--rules",
+      "examples/contrived/rules-criteria.yaml",
+      "--limit",
+      "150",
+      "--workers",
+      "4",
+      "--config",
+      "examples/configs/jev-cascade.yaml",
+      "--note",
+      "cascade-2026-09-28 holdout: jev->haiku"
+    ],
+    "sessions": [
+      "5d775dc0-84c3-4a77-9cdf-4576a673834b",
+      "7746dc5b-bc56-48d4-af1f-cd5846dd9cad",
+      "fd4f78e5-2d96-4d3d-8165-ba3333f6c6b3"
+    ],
+    "limit": 150,
+    "workers": 4,
+    "with_summary": false,
+    "rules_path": "examples/contrived/rules-criteria.yaml",
+    "rules_sha256": "0be6e3af1414818a",
+    "rules": [
+      {
+        "id": "edits_markdown",
+        "when": {
+          "tools": [
+            "Write",
+            "Edit",
+            "MultiEdit"
+          ]
+        },
+        "question": "Does the pending tool call `call` create or modify a Markdown (.md) file?",
+        "criteria": {
+          "true": "The file at `call.input.file_path` has a .md extension and the call writes or edits it.",
+          "false": "The file being written or edited has any other extension (.ts, .py, .json, .mdx, .yaml, ...)."
+        }
+      },
+      {
+        "id": "runs_tests",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does the shell command in `call.input.command` execute an automated test suite?",
+        "criteria": {
+          "true": "The command runs a test runner, directly or through a package script: pytest, vitest, jest, playwright test, go test, cargo test, make test, npm/pnpm/yarn test, or an npm script such as `npm run check` whose job includes running the tests.\n",
+          "false": "The command only writes, reads, searches, lists, lints, type-checks, formats or builds files. Writing a test file, reading a test config or grepping test names without running a test runner is not running tests.\n"
+        }
+      },
+      {
+        "id": "git_commit",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does the shell command in `call.input.command` create a git commit?",
+        "criteria": {
+          "true": "It runs `git commit`, with any options (for example `git -C dir commit` or `git -c user.name=x commit`).",
+          "false": "It runs only other git commands (status, add, diff, log, push, show) or no git at all. A commit message, heredoc or file that merely contains the words \"git commit\" does not count.\n"
+        }
+      },
+      {
+        "id": "git_commit_pattern",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "pattern": "\\bgit\\s+(-[cC]\\s+(\"[^\"]*\"|\\S+)\\s+)*commit\\b"
+      },
+      {
+        "id": "runs_session_script",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does `call.input.command` execute a script file that this session wrote or edited earlier?",
+        "criteria": {
+          "true": "`resolved.script.written_this_session` is true, or the command runs (./file, bash file, python file, node file) a path listed in `ledger.files_written`.\n",
+          "false": "The command runs no local script file, runs a script that is not in `ledger.files_written` (for example a pre-existing repo script), runs inline code (`python3 - <<EOF`, `node -e`), or only writes, edits or reads a script without running it.\n"
+        }
+      },
+      {
+        "id": "web_access",
+        "when": {
+          "tools": [
+            "Bash",
+            "WebFetch",
+            "WebSearch"
+          ]
+        },
+        "question": "Does the pending tool call `call` access the web?",
+        "criteria": {
+          "true": "`call.tool` is WebFetch or WebSearch, or `call.input.command` runs curl or wget (against any URL, including localhost).\n",
+          "false": "Any other tool or command, including git, gh, npm/pip installs, or scripts that may make requests themselves without invoking curl or wget in the command.\n"
+        }
+      }
+    ],
+    "configs": [
+      {
+        "path": "examples/configs/jev-cascade.yaml",
+        "provider": "jev:jev-latest -> anthropic:claude-haiku-4-5-20251001",
+        "judge": {
+          "provider": "jev",
+          "model": "jev-latest",
+          "timeout": 3.0,
+          "backtest_timeout": 60.0,
+          "backtest_retries": 3,
+          "base_url": "https://api.typesafe.ai",
+          "threshold": 0.9,
+          "escalate": {
+            "provider": "anthropic",
+            "model": "claude-haiku-4-5-20251001",
+            "band": [
+              0.5,
+              0.9
+            ]
+          }
+        }
+      }
+    ],
+    "labels": 49284
+  },
+  "metrics": {
+    "calls": 450,
+    "sessions": [
+      "5d775dc0-84c3-4a77-9cdf-4576a673834b",
+      "7746dc5b-bc56-48d4-af1f-cd5846dd9cad",
+      "fd4f78e5-2d96-4d3d-8165-ba3333f6c6b3"
+    ],
+    "configs": [
+      {
+        "config": "examples/configs/jev-cascade.yaml",
+        "provider": "jev:jev-latest",
+        "calls": 450,
+        "model_calls": 450,
+        "errors": 0,
+        "p50_ms": 292,
+        "p95_ms": 1347,
+        "wall_s": 111.0
+      }
+    ],
+    "rules": {
+      "edits_markdown": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/jev-cascade.yaml": {
+            "evaluated": 10,
+            "trips": 1,
+            "n": 10,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "tn": 9,
+            "acc": 1.0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        }
+      },
+      "runs_tests": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/jev-cascade.yaml": {
+            "evaluated": 436,
+            "trips": 19,
+            "n": 436,
+            "tp": 15,
+            "fp": 4,
+            "fn": 2,
+            "tn": 415,
+            "acc": 0.986,
+            "precision": 0.789,
+            "recall": 0.882
+          }
+        }
+      },
+      "git_commit": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/jev-cascade.yaml": {
+            "evaluated": 436,
+            "trips": 0,
+            "n": 436,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "tn": 436,
+            "acc": 1.0,
+            "precision": null,
+            "recall": null
+          }
+        }
+      },
+      "git_commit_pattern": {
+        "kind": "pattern",
+        "by_config": {
+          "examples/configs/jev-cascade.yaml": {
+            "evaluated": 436,
+            "trips": 0,
+            "n": 436,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "tn": 436,
+            "acc": 1.0,
+            "precision": null,
+            "recall": null
+          }
+        }
+      },
+      "runs_session_script": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/jev-cascade.yaml": {
+            "evaluated": 436,
+            "trips": 14,
+            "n": 436,
+            "tp": 3,
+            "fp": 11,
+            "fn": 0,
+            "tn": 422,
+            "acc": 0.975,
+            "precision": 0.214,
+            "recall": 1.0
+          }
+        }
+      },
+      "web_access": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/jev-cascade.yaml": {
+            "evaluated": 440,
+            "trips": 10,
+            "n": 440,
+            "tp": 6,
+            "fp": 4,
+            "fn": 0,
+            "tn": 430,
+            "acc": 0.991,
+            "precision": 0.6,
+            "recall": 1.0
+          }
+        }
+      }
+    }
+  }
+}

@@ -6,7 +6,7 @@ import sys
 import time
 import traceback
 
-from good_cop import config, context, ledger as ledger_mod, probes, rules, store, summary
+from good_cop import config, context, harness, ledger as ledger_mod, probes, rules, store, summary
 
 EVENT_TYPES = {
     "SessionStart": "session_start",
@@ -18,21 +18,21 @@ EVENT_TYPES = {
 }
 FIELDS = [("tool_name", "tool"), ("tool_input", "input"), ("tool_response", "result"),
           ("tool_use_id", "tool_use_id"), ("prompt", "prompt"), ("source", "source"),
-          ("agent_id", "agent_id"), ("agent_type", "agent_type")]
+          ("agent_id", "agent_id"), ("agent_type", "agent_type"), ("harness", "harness")]
 
 
 class Budget(Exception):
     pass
 
 
-def main() -> int:
+def main(harness_name: str = "claude", event: str | None = None) -> int:
     t0 = time.monotonic()
     try:
-        payload = json.load(sys.stdin)
+        payload = harness.to_claude(json.load(sys.stdin), harness_name, event)
         cfg = config.load_config()
         signal.signal(signal.SIGALRM, lambda *_: (_ for _ in ()).throw(Budget("hook budget exceeded")))
         signal.setitimer(signal.ITIMER_REAL, cfg.get("hook_budget", 5.0))
-        out = handle(payload, cfg, t0)
+        out = harness.output(handle(payload, cfg, t0), harness_name)
         signal.setitimer(signal.ITIMER_REAL, 0)
         if out:
             print(json.dumps(out))

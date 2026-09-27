@@ -165,6 +165,15 @@ def _record_write(ledger: dict, key: str, seq: int, tool: str) -> dict:
     return info
 
 
+def _apply_patch(ledger: dict, e: dict) -> None:
+    from good_cop.harness import patch_paths
+    patch = (e.get("input") or {}).get("command", "")
+    for path in patch_paths(patch):
+        info = _record_write(ledger, abspath(path, e.get("cwd")), e["seq"], "apply_patch")
+        if f"*** Add File: {path}\n+#!" in patch:
+            info["executable_hint"] = True
+
+
 def _fetch(ledger: dict, e: dict) -> None:
     _add_hosts(ledger, hosts_in((e.get("input") or {}).get("url", "")))
 
@@ -179,6 +188,7 @@ EXTRACTORS = {
     "Edit": _write,
     "MultiEdit": _write,
     "NotebookEdit": _write,
+    "apply_patch": _apply_patch,  # Codex
     "WebFetch": _fetch,
 }
 

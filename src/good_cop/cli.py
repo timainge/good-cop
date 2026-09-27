@@ -12,10 +12,13 @@ def main(argv: list[str] | None = None) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     # live
-    sub.add_parser("hook", help="Claude Code hook entry (reads JSON on stdin)")
+    s = sub.add_parser("hook", help="hook entry (reads JSON on stdin)")
+    s.add_argument("--harness", choices=["claude", "codex", "cursor", "copilot"], default="claude")
+    s.add_argument("--event", help="event name, for harnesses whose payload doesn't carry it")
     for name, verb in (("install", "add good-cop hooks to"), ("uninstall", "remove good-cop hooks from")):
-        s = sub.add_parser(name, help=f"{verb} ~/.claude/settings.json")
-        s.add_argument("--settings", help="settings file to edit instead")
+        s = sub.add_parser(name, help=f"{verb} the harness's hook config (default ~/.claude/settings.json)")
+        s.add_argument("--settings", help="config file to edit instead")
+        s.add_argument("--harness", choices=["claude", "codex", "cursor", "copilot"], default="claude")
     s = sub.add_parser("show", help="print ledger, summary and recent decisions")
     s.add_argument("session", nargs="?")
     s.add_argument("-n", type=int, default=10)
@@ -48,10 +51,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "hook":
         from good_cop import hook
-        return hook.main()
+        return hook.main(args.harness, args.event)
     if args.cmd in ("install", "uninstall"):
         from good_cop import install
-        return getattr(install, args.cmd)(args.settings)
+        return getattr(install, args.cmd)(args.settings, args.harness)
     if args.cmd == "show":
         from good_cop import show
         return show.main(args.session, args.n)

@@ -12,9 +12,13 @@ SEVERITY = {"allow": 0, "log": 1, "ask": 2, "deny": 3}
 CODE_KINDS = ("pattern", "fact")
 
 
+EQUIVALENT_TOOLS = {"apply_patch": ("Edit", "Write", "MultiEdit")}  # Codex file edits
+
+
 def applies(rule: dict, tool: str) -> bool:
     tools = (rule.get("when") or {}).get("tools")
-    return not tools or any(fnmatch.fnmatchcase(tool or "", t) for t in tools)
+    names = (tool or "", *EQUIVALENT_TOOLS.get(tool, ()))
+    return not tools or any(fnmatch.fnmatchcase(n, t) for n in names for t in tools)
 
 
 def kind(rule: dict) -> str:
