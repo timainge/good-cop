@@ -1,0 +1,232 @@
+{
+  "meta": {
+    "ts": "2026-09-27T20:43:53.003+00:00",
+    "note": "holdout-large-2026-09-28: jev-typesafe",
+    "git_sha": "1949ccf",
+    "argv": [
+      "backtest",
+      "7746dc5b",
+      "fd4f78e5",
+      "5d775dc0",
+      "--rules",
+      "examples/contrived/rules.yaml",
+      "--limit",
+      "150",
+      "--workers",
+      "8",
+      "--config",
+      "examples/configs/jev-typesafe.yaml",
+      "--note",
+      "holdout-large-2026-09-28: jev-typesafe"
+    ],
+    "sessions": [
+      "5d775dc0-84c3-4a77-9cdf-4576a673834b",
+      "7746dc5b-bc56-48d4-af1f-cd5846dd9cad",
+      "fd4f78e5-2d96-4d3d-8165-ba3333f6c6b3"
+    ],
+    "limit": 150,
+    "workers": 8,
+    "with_summary": false,
+    "rules_path": "examples/contrived/rules.yaml",
+    "rules_sha256": "e3e143e0652737c3",
+    "rules": [
+      {
+        "id": "edits_markdown",
+        "when": {
+          "tools": [
+            "Write",
+            "Edit",
+            "MultiEdit"
+          ]
+        },
+        "question": "Does this tool call create or modify a Markdown (.md) file?"
+      },
+      {
+        "id": "runs_tests",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call run an automated test suite (for example pytest, vitest, jest, npm test, go test, cargo test or make test)?\n"
+      },
+      {
+        "id": "git_commit",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call create a git commit?"
+      },
+      {
+        "id": "git_commit_pattern",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "pattern": "\\bgit\\s+(-[cC]\\s+(\"[^\"]*\"|\\S+)\\s+)*commit\\b"
+      },
+      {
+        "id": "runs_session_script",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call execute a script file that was written or edited earlier in this same session? Use ledger.files_written and resolved.script as evidence.\n"
+      },
+      {
+        "id": "web_access",
+        "when": {
+          "tools": [
+            "Bash",
+            "WebFetch",
+            "WebSearch"
+          ]
+        },
+        "question": "Is this tool call a WebFetch or WebSearch, or a shell command that runs curl or wget?"
+      }
+    ],
+    "configs": [
+      {
+        "path": "examples/configs/jev-typesafe.yaml",
+        "provider": "jev:jev-latest",
+        "judge": {
+          "provider": "jev",
+          "model": "jev-latest",
+          "timeout": 3.0,
+          "backtest_timeout": 60.0,
+          "backtest_retries": 3,
+          "base_url": "https://api.typesafe.ai"
+        }
+      }
+    ],
+    "labels": 32856
+  },
+  "metrics": {
+    "calls": 450,
+    "sessions": [
+      "5d775dc0-84c3-4a77-9cdf-4576a673834b",
+      "7746dc5b-bc56-48d4-af1f-cd5846dd9cad",
+      "fd4f78e5-2d96-4d3d-8165-ba3333f6c6b3"
+    ],
+    "configs": [
+      {
+        "config": "examples/configs/jev-typesafe.yaml",
+        "provider": "jev:jev-latest",
+        "calls": 450,
+        "model_calls": 450,
+        "errors": 0,
+        "p50_ms": 293,
+        "p95_ms": 1287,
+        "wall_s": 73.9
+      }
+    ],
+    "rules": {
+      "edits_markdown": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/jev-typesafe.yaml": {
+            "evaluated": 10,
+            "trips": 2,
+            "n": 10,
+            "tp": 1,
+            "fp": 1,
+            "fn": 0,
+            "tn": 8,
+            "acc": 0.9,
+            "precision": 0.5,
+            "recall": 1.0
+          }
+        }
+      },
+      "runs_tests": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/jev-typesafe.yaml": {
+            "evaluated": 436,
+            "trips": 46,
+            "n": 436,
+            "tp": 11,
+            "fp": 35,
+            "fn": 2,
+            "tn": 388,
+            "acc": 0.915,
+            "precision": 0.239,
+            "recall": 0.846
+          }
+        }
+      },
+      "git_commit": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/jev-typesafe.yaml": {
+            "evaluated": 436,
+            "trips": 0,
+            "n": 436,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "tn": 436,
+            "acc": 1.0,
+            "precision": null,
+            "recall": null
+          }
+        }
+      },
+      "git_commit_pattern": {
+        "kind": "pattern",
+        "by_config": {
+          "examples/configs/jev-typesafe.yaml": {
+            "evaluated": 436,
+            "trips": 0,
+            "n": 436,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "tn": 436,
+            "acc": 1.0,
+            "precision": null,
+            "recall": null
+          }
+        }
+      },
+      "runs_session_script": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/jev-typesafe.yaml": {
+            "evaluated": 436,
+            "trips": 156,
+            "n": 436,
+            "tp": 3,
+            "fp": 153,
+            "fn": 0,
+            "tn": 280,
+            "acc": 0.649,
+            "precision": 0.019,
+            "recall": 1.0
+          }
+        }
+      },
+      "web_access": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/jev-typesafe.yaml": {
+            "evaluated": 440,
+            "trips": 18,
+            "n": 440,
+            "tp": 6,
+            "fp": 12,
+            "fn": 0,
+            "tn": 422,
+            "acc": 0.973,
+            "precision": 0.333,
+            "recall": 1.0
+          }
+        }
+      }
+    }
+  }
+}

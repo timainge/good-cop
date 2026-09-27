@@ -1,0 +1,237 @@
+{
+  "meta": {
+    "ts": "2026-09-27T20:42:25.252+00:00",
+    "note": "holdout-2026-09-28: anthropic",
+    "git_sha": "1949ccf",
+    "argv": [
+      "backtest",
+      "7746dc5b",
+      "fd4f78e5",
+      "5d775dc0",
+      "09a17cc0",
+      "10b0e67f",
+      "--rules",
+      "examples/contrived/rules.yaml",
+      "--limit",
+      "30",
+      "--workers",
+      "4",
+      "--config",
+      "examples/configs/anthropic.yaml",
+      "--note",
+      "holdout-2026-09-28: anthropic"
+    ],
+    "sessions": [
+      "09a17cc0-b508-4353-b7ab-8bf8a1b35e29",
+      "10b0e67f-26ca-4826-82d4-cc5b2c5920ba",
+      "5d775dc0-84c3-4a77-9cdf-4576a673834b",
+      "7746dc5b-bc56-48d4-af1f-cd5846dd9cad",
+      "fd4f78e5-2d96-4d3d-8165-ba3333f6c6b3"
+    ],
+    "limit": 30,
+    "workers": 4,
+    "with_summary": false,
+    "rules_path": "examples/contrived/rules.yaml",
+    "rules_sha256": "e3e143e0652737c3",
+    "rules": [
+      {
+        "id": "edits_markdown",
+        "when": {
+          "tools": [
+            "Write",
+            "Edit",
+            "MultiEdit"
+          ]
+        },
+        "question": "Does this tool call create or modify a Markdown (.md) file?"
+      },
+      {
+        "id": "runs_tests",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call run an automated test suite (for example pytest, vitest, jest, npm test, go test, cargo test or make test)?\n"
+      },
+      {
+        "id": "git_commit",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call create a git commit?"
+      },
+      {
+        "id": "git_commit_pattern",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "pattern": "\\bgit\\s+(-[cC]\\s+(\"[^\"]*\"|\\S+)\\s+)*commit\\b"
+      },
+      {
+        "id": "runs_session_script",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does this tool call execute a script file that was written or edited earlier in this same session? Use ledger.files_written and resolved.script as evidence.\n"
+      },
+      {
+        "id": "web_access",
+        "when": {
+          "tools": [
+            "Bash",
+            "WebFetch",
+            "WebSearch"
+          ]
+        },
+        "question": "Is this tool call a WebFetch or WebSearch, or a shell command that runs curl or wget?"
+      }
+    ],
+    "configs": [
+      {
+        "path": "examples/configs/anthropic.yaml",
+        "provider": "anthropic:claude-haiku-4-5-20251001",
+        "judge": {
+          "provider": "anthropic",
+          "model": "claude-haiku-4-5-20251001",
+          "timeout": 3.0,
+          "backtest_timeout": 60.0,
+          "backtest_retries": 3
+        }
+      }
+    ],
+    "labels": 32856
+  },
+  "metrics": {
+    "calls": 137,
+    "sessions": [
+      "09a17cc0-b508-4353-b7ab-8bf8a1b35e29",
+      "10b0e67f-26ca-4826-82d4-cc5b2c5920ba",
+      "5d775dc0-84c3-4a77-9cdf-4576a673834b",
+      "7746dc5b-bc56-48d4-af1f-cd5846dd9cad",
+      "fd4f78e5-2d96-4d3d-8165-ba3333f6c6b3"
+    ],
+    "configs": [
+      {
+        "config": "examples/configs/anthropic.yaml",
+        "provider": "anthropic:claude-haiku-4-5-20251001",
+        "calls": 137,
+        "model_calls": 137,
+        "errors": 0,
+        "p50_ms": 1009,
+        "p95_ms": 4167,
+        "wall_s": 46.5
+      }
+    ],
+    "rules": {
+      "edits_markdown": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 3,
+            "trips": 2,
+            "n": 3,
+            "tp": 2,
+            "fp": 0,
+            "fn": 0,
+            "tn": 1,
+            "acc": 1.0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        }
+      },
+      "runs_tests": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 130,
+            "trips": 7,
+            "n": 130,
+            "tp": 2,
+            "fp": 5,
+            "fn": 1,
+            "tn": 122,
+            "acc": 0.954,
+            "precision": 0.286,
+            "recall": 0.667
+          }
+        }
+      },
+      "git_commit": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 130,
+            "trips": 1,
+            "n": 130,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "tn": 129,
+            "acc": 1.0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        }
+      },
+      "git_commit_pattern": {
+        "kind": "pattern",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 130,
+            "trips": 1,
+            "n": 130,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "tn": 129,
+            "acc": 1.0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        }
+      },
+      "runs_session_script": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 130,
+            "trips": 12,
+            "n": 130,
+            "tp": 3,
+            "fp": 9,
+            "fn": 0,
+            "tn": 118,
+            "acc": 0.931,
+            "precision": 0.25,
+            "recall": 1.0
+          }
+        }
+      },
+      "web_access": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/anthropic.yaml": {
+            "evaluated": 134,
+            "trips": 6,
+            "n": 134,
+            "tp": 4,
+            "fp": 2,
+            "fn": 0,
+            "tn": 128,
+            "acc": 0.985,
+            "precision": 0.667,
+            "recall": 1.0
+          }
+        }
+      }
+    }
+  }
+}

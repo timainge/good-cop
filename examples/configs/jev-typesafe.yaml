@@ -1,0 +1,6 @@
+# Jev direct from TypeSafe (TYPESAFE_API_KEY)
+judge:
+  provider: jev
+  model: jev-latest
+  base_url: https://api.typesafe.ai
+  api_key_env: TYPESAFE_API_KEY

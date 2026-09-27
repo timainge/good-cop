@@ -15,6 +15,9 @@ for p in sorted((store.ROOT / "backtests").glob("*.summary.json")):
     note = doc["meta"].get("note") or ""
     if note.startswith(tag):
         recs = store.read_jsonl(p.with_name(p.name.replace(".summary.json", ".jsonl")))
+        if sum(1 for r in recs if r.get("error")) > len(recs) / 2:  # mostly failed: nothing to score
+            print(f"(skipped {note!r}: {sum(1 for r in recs if r.get('error'))}/{len(recs)} judge errors)")
+            continue
         runs.append((note.split(": ", 1)[-1], backtest.metrics(recs, doc["meta"]["rules"], labels)))
 
 if not runs:

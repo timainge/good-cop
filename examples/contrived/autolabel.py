@@ -14,6 +14,7 @@ from pathlib import Path
 from good_cop import backtest, config, ledger, rules, store
 
 TEST_RUNNERS = {"pytest", "vitest", "jest", "mocha"}
+SUBCOMMAND_TEST_RUNNERS = {"playwright", "cypress"}  # `playwright test`, `cypress run`
 
 
 def programs(cmd: str, cwd: str = "/") -> list[tuple[list[str], str]]:
@@ -45,6 +46,8 @@ def is_test(t: list[str], cwd: str = "/", depth: int = 0) -> bool:
             return True
         body = npm_scripts(cwd).get(name) if depth < 3 else None  # follow `npm run check` -> `npm test`
         return bool(body) and any(is_test(p, c, depth + 1) for p, c in programs(body, cwd))
+    if t[0] in SUBCOMMAND_TEST_RUNNERS and t[1:2] in (["test"], ["run"]):
+        return True
     if t[0] in ("go", "cargo", "make") and t[1:2] == ["test"]:
         return True
     return t[0].startswith("python") and t[1:3] in (["-m", "pytest"], ["-m", "unittest"])

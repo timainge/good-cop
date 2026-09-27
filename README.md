@@ -28,10 +28,11 @@ It's for catching mistakes and indirection, not a security boundary. See [docs/u
 
 From backtesting 150 labelled tool calls from our own Claude Code sessions (details and caveats in [docs/results.md](docs/results.md)):
 
-- **Small, cheap judges are good enough for crisp rules.** Claude Haiku 4.5 averaged 0.98 accuracy on five harmless test rules. gpt-5-mini scored 0.95. **Kev-4B**, an open decision model running locally on an M5 MacBook, scored 0.94 with no data leaving the machine.
+- **Small, cheap judges are good enough for crisp rules.** Claude Haiku 4.5 averaged 0.98 accuracy on five harmless test rules, and gpt-5-mini 0.95. **Kev-4B**, an open decision model running locally on an M5 MacBook, scored 0.94 with no data leaving the machine.
+- **A decision model matched the best LLM at a fraction of the latency and cost, once tuned.** TypeSafe's **Jev** answered in 0.29 s p50, about 4× faster than Haiku and ~30× cheaper. With its trip threshold raised to ~0.85, it matched Haiku on one sample and beat it on a held-out one.
 - **The model is often right when the code is wrong.** Most early disagreements were our bugs: scripts written with heredocs, `cd dir && ./x.sh`, `npm run check` quietly running the test suite. Judges saw through all three before our parser did.
 - **Code is still better for exact facts.** A "writes outside the workspace" rule kept firing on reads no matter how we worded it. Path comparisons belong in code. See [docs/model-strategy.md](docs/model-strategy.md).
-- **Latency is the real constraint.** Haiku adds ~1.1 s p50 per call and Kev-4B ~2 s. A 7B general model via Ollama took ~13 s, too slow for live use. Hosted decision models advertise sub-500 ms but were capacity-limited when we tested.
+- **Latency is the real constraint.** Jev direct takes ~0.3 s per call, Haiku ~1.1 s p50 and Kev-4B ~2 s. A 7B general model via Ollama took 8–13 s, too slow for live use. Jev through Vercel's gateway was rate-limited almost entirely, while TypeSafe's own API had no errors.
 
 ## Getting started with Claude Code
 
@@ -51,7 +52,7 @@ Pick a judge in `~/.good-cop/config.yaml`:
 | `anthropic` (default) | `ANTHROPIC_API_KEY` | Haiku 4.5: ~1 s, ~$2.4 per 1k calls |
 | `openai` | `OPENAI_API_KEY` | gpt-5-mini, or any OpenAI-compatible server via `base_url` |
 | `ollama` | nothing | local; fine for backtests, slow for live use |
-| `jev` | `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` | TypeSafe's Jev decision model, direct or via Vercel AI Gateway |
+| `jev` | `TYPESAFE_API_KEY` | TypeSafe's Jev decision model: ~0.3 s, ~$0.08 per 1k calls; raise rule thresholds to ~0.85 (`examples/configs/jev-typesafe.yaml`) |
 | `jev` + local `base_url` | nothing | any Jev-compatible local server, e.g. [Kev](https://github.com/jaredpalmer/kev) (`examples/configs/kev-local.yaml`) |
 
 Hooks inherit Claude Code's environment, so export the key where you launch `claude`.

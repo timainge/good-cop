@@ -60,13 +60,20 @@ def segments(command: str, cwd: str | None) -> list[tuple[list[str], str | None]
     return out
 
 
+LAUNCHER_ARG_FLAGS = {"--with", "--from", "--python", "-p", "--project", "--directory", "-k", "-s"}
+
+
 def _unwrap(tokens: list[str]) -> list[str]:
-    """Strip launchers so tokens[0] is the program: `uv run`, `npx`, `env`, `time`, `sudo`."""
+    """Strip launchers so tokens[0] is the program: `uv run --quiet`, `npx`, `env`, `timeout 60`, `sudo`."""
     while tokens:
         if tokens[0] in ("uv", "poetry", "pnpm", "yarn", "bun") and tokens[1:2] == ["run"]:
             tokens = tokens[2:]
-        elif tokens[0] in ("npx", "env", "time", "sudo", "exec", "nohup"):
+        elif tokens[0] in ("npx", "env", "time", "sudo", "exec", "nohup", "timeout", "gtimeout"):
             tokens = tokens[1:]
+            if tokens and tokens[0] != "--" and re.fullmatch(r"\d+[smhd]?", tokens[0]) and len(tokens) > 1:
+                tokens = tokens[1:]  # timeout's duration
+        elif tokens[0].startswith("-") and len(tokens) > 1:  # launcher flags: uv run --quiet, npx -y
+            tokens = tokens[2:] if tokens[0] in LAUNCHER_ARG_FLAGS else tokens[1:]
         else:
             return tokens
     return tokens

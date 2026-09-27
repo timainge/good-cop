@@ -52,3 +52,11 @@ def test_bash_written_script_flag():
     assert led["files_written"]["/w/go.sh"]["tool"] == "Bash"
     led = ledger.fold(led, {"seq": 2, "type": "post_tool", "tool": "Bash", "cwd": "/w", "input": {"command": "./go.sh"}})
     assert led["flags"]["ran_script_written_this_session"]
+
+
+def test_unwrap_launchers():
+    f = ledger.executed_scripts
+    assert f("timeout 60 ./slow.sh", "/w") == ["/w/slow.sh"]
+    assert f("uv run --quiet python tools/x.py", "/w") == ["/w/tools/x.py"]
+    assert f("uv run --with rich python y.py", "/w") == ["/w/y.py"]
+    assert ledger._unwrap(["npx", "-y", "playwright", "test"]) == ["playwright", "test"]
