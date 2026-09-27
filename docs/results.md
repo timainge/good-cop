@@ -68,7 +68,7 @@ TypeSafe's guidance is to point questions at state paths and define what yes and
 | gpt-5-mini | 0.76 / 0.92 → 0.79 / 0.85 | 0.66 / 1.00 → 0.72 / 1.00 |
 | Haiku 4.5 | 0.90 / 0.99 → 0.89 / 0.99 | 0.62 / 1.00 → 0.57 / 0.92 |
 | Kev-4B | 0.71 / 0.95 → 0.71 / 0.86 (best threshold 0.75 → 0.76) | – |
-| qwen2.5-7b | OLLAMA_ROW | – |
+| qwen2.5-7b (Ollama) | 0.74 / 0.73 → **0.84 / 0.75** (p95 latency 15 → 36 s: longer prompts) | – |
 
 **Jev with criteria at its tuned threshold:**
 
@@ -78,10 +78,11 @@ TypeSafe's guidance is to point questions at state paths and define what yes and
 | held-out | 0.71 / 0.97 → 0.79 / 0.97 | 0.92 / 0.97 → 0.84 / 0.97 |
 
 - **Criteria are a big win for Jev.** Held-out false positives fell from 31 to 3 on `runs_tests` and from 153 to 13 on `runs_session_script`. The gain is largest at the default threshold, so less tuning is needed. On the fixed sample, Jev with criteria is the best judge we've measured (F1 0.97).
-- **For text LLMs, criteria are roughly neutral.** gpt-5-mini gains F1 but loses some recall, reading the "no" definitions strictly. Haiku is unchanged on the fixed sample and slightly down on held-out, by two calls with `curl` buried in long commands. Kev, fine-tuned to imitate Jev, doesn't benefit the way Jev does.
+- **They also help the small local LLM.** qwen2.5-7b gains 0.10 F1. The explicit definitions do work its weaker reasoning couldn't.
+- **For the strong LLMs, criteria are roughly neutral.** gpt-5-mini gains F1 but loses some recall, reading the "no" definitions strictly. Haiku is unchanged on the fixed sample and slightly down on held-out, by two calls with `curl` buried in long commands. Kev, fine-tuned to imitate Jev, doesn't benefit the way Jev does.
 - **A wording lesson from the first attempt.** Version 1 asked "does this call fetch content from a URL?", with criteria listing WebSearch as yes. Haiku and gpt-5-mini followed the *question*: WebSearch scored 0.00. Jev followed the *criteria*. Keep the question and its criteria consistent. Only v2 numbers are reported above; v1 runs are in `evals/runs/` tagged `criteria-2026-09-28`.
 
-We kept the criteria. They're the rule's specification and cost the LLM judges nothing that matters. good-cop rules take an optional `criteria: {true, false}`.
+We kept the criteria. They're the rule's specification, they help the weaker judges most, and they cost the strong ones nothing that matters. (Scores here were re-scored against the final labels, after the parser fixes of 2026-09-28, so they may differ from earlier tables by a call or two.) good-cop rules take an optional `criteria: {true, false}`.
 
 ## Cascade: decision model first, LLM when unsure
 
