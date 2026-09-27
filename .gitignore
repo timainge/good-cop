@@ -5,5 +5,5 @@ __pycache__/
 dist/
 *.egg-info/
 .env
-
+scratch.md
 .env.*

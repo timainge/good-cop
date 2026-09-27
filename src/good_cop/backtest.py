@@ -103,7 +103,7 @@ def report(result: dict) -> str:
             ev, trips, tp, fp, fn, tn = 0, set(), 0, 0, 0, 0
             for (sid, e, _), d in zip(items, r["decisions"]):
                 res = d["results"].get(rid)
-                if not res:
+                if not res or res["p"] is None:  # errored judge calls have no answer: not scored
                     continue
                 ev += 1
                 hit = bool(res.get("tripped"))
