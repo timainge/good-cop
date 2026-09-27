@@ -45,3 +45,16 @@ def test_post_retries_on_429(monkeypatch):
     import pytest
     with pytest.raises(RuntimeError, match="429"):
         providers._post("https://x", {}, {}, 1, retries=1)
+
+
+def test_local_endpoints_skip_redaction_and_auth(monkeypatch):
+    kev = {"provider": "jev", "model": "kev-latest", "base_url": "http://127.0.0.1:8009"}
+    assert isinstance(providers.make_llm(kev), providers.Jev)  # local: no redaction wrapper
+    assert isinstance(providers.make_llm({"provider": "ollama", "model": "m"}), providers.Ollama)
+    assert isinstance(providers.make_llm({"provider": "openai", "model": "m"}), providers.Redacting)
+    sent = {}
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.setattr(providers, "_post", lambda url, headers, body, timeout, retries=0: (
+        sent.update(headers=headers) or {"answers": {"a": {"type": "noul", "noul": 0.4}}}))
+    assert providers.make_llm(kev).decide({}, {"a": "q"}, timeout=1) == {"a": 0.4}
+    assert sent["headers"] == {}

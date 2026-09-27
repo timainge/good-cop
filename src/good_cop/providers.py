@@ -3,6 +3,7 @@
 import os
 import time
 from typing import Protocol
+from urllib.parse import urlparse
 
 from good_cop import redact, store
 
@@ -88,8 +89,9 @@ class Ollama:
 class Jev:
     """TypeSafe's System One model. Not a text model: it answers the rule questions directly as
     `noul` (yes/no) probabilities, so the judge calls `decide` instead of `complete`.
-    Works against TypeSafe (https://api.typesafe.ai, TYPESAFE_API_KEY) or Vercel AI Gateway
-    (https://ai-gateway.vercel.sh/typesafe, AI_GATEWAY_API_KEY), which keeps the native API."""
+    Works against TypeSafe (https://api.typesafe.ai, TYPESAFE_API_KEY), Vercel AI Gateway
+    (https://ai-gateway.vercel.sh/typesafe, AI_GATEWAY_API_KEY), or any local server with the
+    same API, e.g. Kev (http://127.0.0.1:8009, no key)."""
 
     def __init__(self, cfg: dict):
         self.model = cfg.get("model", "jev-latest")
@@ -104,7 +106,8 @@ class Jev:
     def decide(self, state: dict, questions: dict[str, str], *, timeout: float) -> dict[str, float]:
         body = {"model": self.model, "state": state,
                 "questions": {rid: {"type": "noul", "instructions": q.strip()} for rid, q in questions.items()}}
-        headers = {"Authorization": f"Bearer {os.environ[self.key_env]}"}
+        key = os.environ.get(self.key_env)
+        headers = {"Authorization": f"Bearer {key}"} if key else {}
         data = _post(f"{self.base_url}/v1/systemone", headers, body, timeout, self.retries)
         return {rid: float(a["noul"]) for rid, a in data["answers"].items() if "noul" in a}
 
@@ -134,7 +137,15 @@ class Redacting:
 PROVIDERS = {"anthropic": Anthropic, "openai": OpenAI, "ollama": Ollama, "jev": Jev}
 
 
+def is_local(cfg: dict) -> bool:
+    if cfg["provider"] == "ollama" and not cfg.get("base_url"):
+        return True
+    host = urlparse(cfg.get("base_url") or "").hostname or ""
+    return host in ("localhost", "127.0.0.1", "::1")
+
+
 def make_llm(cfg: dict, redact_setting="auto") -> LLM:
+    """Build a provider. Redaction `auto` is on unless the endpoint is on this machine."""
     llm = PROVIDERS[cfg["provider"]](cfg)
-    on = cfg["provider"] != "ollama" if redact_setting == "auto" else bool(redact_setting)
+    on = not is_local(cfg) if redact_setting == "auto" else bool(redact_setting)
     return Redacting(llm) if on else llm

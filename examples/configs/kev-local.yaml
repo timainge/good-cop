@@ -1,0 +1,6 @@
+# Kev (github.com/jaredpalmer/kev), a local Jev-compatible server:
+#   uv run --extra serve python -m kev.serve --run jaredpalmer/kev-4b --port 8009
+judge:
+  provider: jev
+  model: kev-latest
+  base_url: http://127.0.0.1:8009
