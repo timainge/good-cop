@@ -68,7 +68,7 @@ def run(sessions: list[str], config_paths: list[str | None], rules_path: str | N
     runs = []
     for path, cfg in zip(config_paths, cfgs):
         jcfg = cfg["judge"]
-        llm = providers.make_llm(jcfg, cfg.get("redact", "auto"))
+        llm = providers.make_llm({**jcfg, "retries": jcfg.get("backtest_retries", 3)}, cfg.get("redact", "auto"))
         timeout = jcfg.get("backtest_timeout", 60)
         t0 = time.monotonic()
         with ThreadPoolExecutor(workers) as ex:

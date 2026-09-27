@@ -5,6 +5,7 @@ judge:
   model: claude-haiku-4-5-20251001
   timeout: 3.0                       # seconds per judge call in live mode
   backtest_timeout: 60.0
+  backtest_retries: 3                # on 429/5xx, backtest only (live never retries)
   # provider: openai
   # model: gpt-5-mini
   # base_url: https://api.openai.com/v1     # any OpenAI-compatible server
@@ -12,6 +13,10 @@ judge:
   # provider: ollama
   # model: qwen2.5:7b-instruct
   # base_url: http://localhost:11434
+  # provider: jev                             # TypeSafe System One: answers rule questions natively
+  # model: jev-latest
+  # base_url: https://ai-gateway.vercel.sh/typesafe   # default https://api.typesafe.ai
+  # api_key_env: AI_GATEWAY_API_KEY                   # default TYPESAFE_API_KEY
 
 summary:
   enabled: false
@@ -20,7 +25,7 @@ summary:
   model: qwen2.5:7b-instruct
   timeout: 120.0
 
-redact: auto                         # auto = on for anthropic/openai, off for ollama | true | false
+redact: auto                         # auto = on for cloud providers, off for ollama | true | false
 hook_budget: 5.0                     # hard limit per hook invocation, seconds
 max_state_tokens: 8000               # decision state cap (chars / 4)
 

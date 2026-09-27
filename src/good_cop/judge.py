@@ -44,4 +44,7 @@ def parse(text: str, ids) -> dict[str, float]:
 
 
 def judge(llm, state: dict, questions: dict[str, str], timeout: float) -> dict[str, float]:
+    if hasattr(llm, "decide"):  # decision models (jev) take the questions natively
+        return {rid: min(1.0, max(0.0, p)) for rid, p in llm.decide(state, questions, timeout=timeout).items()
+                if rid in questions}
     return parse(llm.complete(SYSTEM, prompt(state, questions), timeout=timeout), questions)

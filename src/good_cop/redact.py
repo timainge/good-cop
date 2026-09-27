@@ -28,3 +28,16 @@ def redact(text: str) -> tuple[str, int]:
         text, n = pat.subn(MASK, text)
         count += n
     return text, count
+
+
+def redact_obj(obj) -> tuple[object, int]:
+    """redact() applied to every string inside a JSON-like value."""
+    if isinstance(obj, str):
+        return redact(obj)
+    if isinstance(obj, dict):
+        items = [(k, *redact_obj(v)) for k, v in obj.items()]
+        return {k: v for k, v, _ in items}, sum(n for *_, n in items)
+    if isinstance(obj, list):
+        items = [redact_obj(v) for v in obj]
+        return [v for v, _ in items], sum(n for _, n in items)
+    return obj, 0

@@ -202,11 +202,14 @@ class LLM(Protocol):
     def complete(self, system: str, user: str, *, timeout: float) -> str: ...
 ```
 
-Built via `make_llm(cfg)`. Three implementations in one file (`providers.py`), each a plain `httpx` POST:
+Built via `make_llm(cfg)`. Four implementations in one file (`providers.py`), each a plain `httpx` POST:
 
 - **`anthropic`:** Messages API. Key from `ANTHROPIC_API_KEY`.
 - **`openai`:** Chat Completions API with `response_format={"type": "json_object"}`. Key from `OPENAI_API_KEY`. Accepts `base_url`, so any OpenAI-compatible server also works.
 - **`ollama`:** native `/api/chat` with `format: "json"`, default `base_url: http://localhost:11434`. No key.
+- **`jev`:** TypeSafe's System One decision model. Not a text model, so it also has `decide(state, questions) -> {rule_id: p}`: the state goes over as JSON and each model rule becomes a `noul` question, one request per call; the judge uses `decide` whenever a provider has it. `POST {base_url}/v1/systemone`, default `https://api.typesafe.ai` with `TYPESAFE_API_KEY`; via Vercel AI Gateway set `base_url: https://ai-gateway.vercel.sh/typesafe`, `api_key_env: AI_GATEWAY_API_KEY` (same native API). Judge only; it can't summarise. Redaction applies to every string in the state.
+
+Retries: `_post` retries 429/5xx with backoff (honouring `retry-after`). Backtest uses `judge.backtest_retries` (default 3); live mode never retries, the hook budget comes first.
 
 `~/.good-cop/config.yaml`:
 
@@ -218,12 +221,16 @@ judge:
   # model: gpt-5-mini
   # provider: ollama
   # model: qwen2.5:7b-instruct
+  # provider: jev
+  # model: jev-latest
+  # base_url: https://ai-gateway.vercel.sh/typesafe
+  # api_key_env: AI_GATEWAY_API_KEY
 summary:
   enabled: false
   every: 8                           # events between summary updates
   provider: ollama
   model: qwen2.5:7b-instruct
-redact: auto                         # auto = on for anthropic/openai, off for ollama
+redact: auto                         # auto = on for cloud providers, off for ollama
 ```
 
 **Redaction** (`redact.py`) is applied to the prompt text at the provider boundary when active. It covers regexes for common secret formats (AWS keys, GitHub tokens, `sk-…`, JWTs, PEM blocks, `Bearer …`), plus replacing the values of any env var whose name matches `KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL`. Log a count of redactions, never the values.

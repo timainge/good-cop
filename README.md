@@ -1,6 +1,6 @@
 # good-cop
 
-A local-first observer for Claude Code sessions. It records every hook event and keeps a deterministic ledger of facts: environment, files written (including from the shell), scripts run and hosts contacted. For each tool call it asks an LLM judge (Anthropic, OpenAI or a local Ollama model) whether any rule trips. By default it only logs; enforcement (`ask`/`deny`) is opt-in.
+A local-first observer for Claude Code sessions. It records every hook event and keeps a deterministic ledger of facts: environment, files written (including from the shell), scripts run and hosts contacted. For each tool call it asks an LLM judge (Anthropic, OpenAI, a local Ollama model, or TypeSafe's Jev decision model) whether any rule trips. By default it only logs; enforcement (`ask`/`deny`) is opt-in.
 
 Two modes share the same code:
 
@@ -17,7 +17,7 @@ uv run good-cop install                      # hooks -> ~/.claude/settings.json 
 uv run good-cop install --settings path.json # or any other settings file (e.g. for claude --settings)
 ```
 
-Edit `~/.good-cop/config.yaml` (provider, model, optional summary) and `~/.good-cop/rules.yaml`. Keys come from `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`; Ollama needs none. Set `GOOD_COP_HOME` to use another data dir.
+Edit `~/.good-cop/config.yaml` (provider, model, optional summary) and `~/.good-cop/rules.yaml`. Keys come from `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `TYPESAFE_API_KEY` (or `AI_GATEWAY_API_KEY` for Jev via Vercel, see `examples/configs/jev-vercel.yaml`); Ollama needs none. Hooks inherit Claude Code's environment, so export keys there; for backtests from this repo, `set -a; . ./.env.local; set +a`. Set `GOOD_COP_HOME` to use another data dir.
 
 ## Live
 

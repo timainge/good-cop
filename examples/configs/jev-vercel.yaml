@@ -1,0 +1,5 @@
+judge:
+  provider: jev
+  model: jev-latest
+  base_url: https://ai-gateway.vercel.sh/typesafe
+  api_key_env: AI_GATEWAY_API_KEY
