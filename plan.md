@@ -376,7 +376,11 @@ Candidates from DataCamp's "Top 7 open-source Jev alternatives", judged on: runs
 
 ### Follow-ups surfaced by the above
 
-- Per-rule cascade: pattern/ledger check → decision model → large LLM when unsure → `ask` ([model-strategy.md](docs/model-strategy.md#implications-for-good-cop)).
-- Rules as predicates over state (e.g. `resolved.writes[].outside_cwd`), and per-provider thresholds (Jev ~0.85, Kev ~0.7): add `judge.threshold` to config so a provider switch carries its calibration.
-- Harness adapters in order: Codex → Cursor → Copilot → OpenCode ([harnesses.md](docs/harnesses.md#proposed-design)).
-- A larger, human-labelled sample with real safety rules before drawing firm conclusions.
+- [ ] Per-rule cascade: pattern/ledger check → decision model → large LLM when unsure → `ask` ([model-strategy.md](docs/model-strategy.md#implications-for-good-cop)).
+- [ ] Rules as predicates over state (e.g. `resolved.writes[].outside_cwd`), and per-provider thresholds (Jev ~0.85, Kev ~0.7): add `judge.threshold` to config so a provider switch carries its calibration.
+- [ ] Harness adapters in order: Codex → Cursor → Copilot → OpenCode ([harnesses.md](docs/harnesses.md#proposed-design)).
+-  Defer: A larger, human-labelled sample with real safety rules before drawing firm conclusions.
+- [ ] prepare repo for publishing as experimental, expanded readme with external facing content that explains what/why/how to get started with no assumption of project knowledge
+- [ ] add useful docs to the github wiki
+ 
+

@@ -18,11 +18,18 @@ RETRYABLE = {429, 500, 502, 503, 504}
 
 
 def _post(url: str, headers: dict, body: dict, timeout: float, retries: int = 0) -> dict:
-    """POST JSON. Retries 429/5xx with backoff (honouring retry-after); live mode uses retries=0."""
+    """POST JSON. Retries 429/5xx and failed connections with backoff (honouring retry-after);
+    live mode uses retries=0."""
     import httpx  # lazy: keeps hook startup fast when no model call is needed
 
     for attempt in range(retries + 1):
-        r = httpx.post(url, headers=headers, json=body, timeout=timeout)
+        try:
+            r = httpx.post(url, headers=headers, json=body, timeout=timeout)
+        except (httpx.ConnectError, httpx.ConnectTimeout):
+            if attempt == retries:
+                raise
+            time.sleep(2.0 ** attempt)
+            continue
         if r.status_code not in RETRYABLE or attempt == retries:
             break
         try:
@@ -103,9 +110,17 @@ class Jev:
     def complete(self, system: str, user: str, *, timeout: float) -> str:
         raise NotImplementedError("jev answers typed questions only; use it as the judge, not the summariser")
 
-    def decide(self, state: dict, questions: dict[str, str], *, timeout: float) -> dict[str, float]:
-        body = {"model": self.model, "state": state,
-                "questions": {rid: {"type": "noul", "instructions": q.strip()} for rid, q in questions.items()}}
+    @staticmethod
+    def _noul(q) -> dict:
+        if isinstance(q, str):
+            return {"type": "noul", "instructions": q.strip()}
+        out = {"type": "noul", "instructions": q["question"].strip()}
+        if q.get("criteria"):
+            out["criteria"] = q["criteria"]
+        return out
+
+    def decide(self, state: dict, questions: dict, *, timeout: float) -> dict[str, float]:
+        body = {"model": self.model, "state": state, "questions": {rid: self._noul(q) for rid, q in questions.items()}}
         key = os.environ.get(self.key_env)
         headers = {"Authorization": f"Bearer {key}"} if key else {}
         data = _post(f"{self.base_url}/v1/systemone", headers, body, timeout, self.retries)
@@ -142,6 +157,21 @@ def is_local(cfg: dict) -> bool:
         return True
     host = urlparse(cfg.get("base_url") or "").hostname or ""
     return host in ("localhost", "127.0.0.1", "::1")
+
+
+def judge_options(cfg: dict, backtest: bool = False) -> dict:
+    """rules.evaluate kwargs from config: judge llm + timeout + calibrated threshold + optional escalation."""
+    jcfg, redact_setting = cfg["judge"], cfg.get("redact", "auto")
+    retries = jcfg.get("backtest_retries", 3) if backtest else 0
+    opts = {"llm": make_llm({**jcfg, "retries": retries}, redact_setting),
+            "timeout": jcfg.get("backtest_timeout", 60) if backtest else jcfg.get("timeout", 3.0),
+            "judge_threshold": jcfg.get("threshold")}
+    ecfg = cfg.get("escalate")
+    if ecfg:
+        opts["escalate"] = {"llm": make_llm({**ecfg, "retries": retries}, redact_setting),
+                            "band": ecfg.get("band", [0.3, 0.85]), "threshold": ecfg.get("threshold"),
+                            "timeout": ecfg.get("backtest_timeout", 60) if backtest else ecfg.get("timeout", 3.0)}
+    return opts
 
 
 def make_llm(cfg: dict, redact_setting="auto") -> LLM:

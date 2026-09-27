@@ -1,0 +1,12 @@
+# Cascade: Jev answers every model rule fast; answers it is unsure of (0.5 <= p < 0.9) are
+# re-asked to Haiku, whose answer stands (default threshold). Jev trips on its own at >= 0.9.
+judge:
+  provider: jev
+  model: jev-latest
+  base_url: https://api.typesafe.ai
+  api_key_env: TYPESAFE_API_KEY
+  threshold: 0.9
+escalate:
+  provider: anthropic
+  model: claude-haiku-4-5-20251001
+  band: [0.5, 0.9]

@@ -10,8 +10,25 @@ Base your answer on the evidence given; do not assume facts that are not shown.
 Respond with a single JSON object mapping each question id to a number, and nothing else."""
 
 
-def prompt(state: dict, questions: dict[str, str]) -> str:
-    qs = "\n".join(f'- "{rid}": {q.strip()}' for rid, q in questions.items())
+def render(q) -> str:
+    """A question as text; criteria (yes/no definitions) become part of it for text models."""
+    if isinstance(q, str):
+        return q.strip()
+    c = q.get("criteria") or {}
+    text = q["question"].strip()
+    if "true" in c:
+        text += f"\n    Yes means: {_text(c['true'])}"
+    if "false" in c:
+        text += f"\n    No means: {_text(c['false'])}"
+    return text
+
+
+def _text(v) -> str:
+    return v.strip() if isinstance(v, str) else json.dumps(v)
+
+
+def prompt(state: dict, questions: dict) -> str:
+    qs = "\n".join(f'- "{rid}": {render(q)}' for rid, q in questions.items())
     example = json.dumps({rid: 0.0 for rid in questions})
     return (f"STATE:\n{json.dumps(state, indent=1, default=str)}\n\n"
             f"QUESTIONS (id: question):\n{qs}\n\n"

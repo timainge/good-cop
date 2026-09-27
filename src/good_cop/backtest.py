@@ -68,13 +68,13 @@ def run(sessions: list[str], config_paths: list[str | None], rules_path: str | N
     runs = []
     for path, cfg in zip(config_paths, cfgs):
         jcfg = cfg["judge"]
-        llm = providers.make_llm({**jcfg, "retries": jcfg.get("backtest_retries", 3)}, cfg.get("redact", "auto"))
-        timeout = jcfg.get("backtest_timeout", 60)
+        opts = providers.judge_options(cfg, backtest=True)
         t0 = time.monotonic()
         with ThreadPoolExecutor(workers) as ex:
-            decisions = list(ex.map(lambda it: rules.evaluate(rules_cfg, it[2], llm, timeout), items))
-        runs.append({"config": path or "default", "provider": llm.name, "judge": jcfg, "decisions": decisions,
-                     "wall_s": round(time.monotonic() - t0, 1)})
+            decisions = list(ex.map(lambda it: rules.evaluate(rules_cfg, it[2], **opts), items))
+        name = opts["llm"].name + (f" -> {opts['escalate']['llm'].name}" if "escalate" in opts else "")
+        runs.append({"config": path or "default", "provider": name, "judge": {**jcfg, "escalate": cfg.get("escalate")},
+                     "decisions": decisions, "wall_s": round(time.monotonic() - t0, 1)})
     return {"items": items, "runs": runs, "rules": rules_cfg}
 
 
@@ -110,7 +110,7 @@ def metrics(recs: list[dict], rule_list: list[dict], labels: dict, wall: dict | 
                                "wall_s": (wall or {}).get(c)})
     for rule in rule_list:
         rid = rule["id"]
-        entry = {"kind": "pattern" if rule.get("pattern") else "model", "by_config": {}}
+        entry = {"kind": rules.kind(rule), "by_config": {}}
         trips = {}
         for c, rs in by_cfg.items():
             ev, hits, tp, fp, fn, tn = 0, set(), 0, 0, 0, 0

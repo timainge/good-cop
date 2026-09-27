@@ -44,3 +44,43 @@ def test_enforced_pattern_deny_skips_model():
     assert d["enforced"] == "deny" and llm.calls == 0 and "q" not in d["results"]
     d = rules.evaluate({**c, "enforce": False}, STATE, llm)  # log mode still collects everything
     assert llm.calls == 1 and d["results"]["q"]["tripped"]
+
+
+WRITE_STATE = {"call": {"tool": "Bash", "input": {"command": "echo x > /etc/hosts"}},
+               "resolved": {"writes": [{"path": "/w/a", "outside_cwd": False}, {"path": "/etc/hosts", "outside_cwd": True}]},
+               "ledger": {"env": {"kube_context": "prod-eu"}}, "recent": []}
+
+
+def test_fact_rules():
+    c = cfg({"id": "outside", "fact": "resolved.writes[].outside_cwd", "action": "deny"},
+            {"id": "prod", "fact": "ledger.env.kube_context", "matches": "^prod"},
+            {"id": "dev", "fact": "ledger.env.kube_context", "equals": "dev"},
+            {"id": "tmp", "fact": "resolved.writes[].path", "in": ["/tmp/x"]}, enforce=True)
+    llm = FakeLLM()
+    d = rules.evaluate(c, WRITE_STATE, llm)
+    assert d["results"]["outside"] == {"p": 1.0, "source": "fact", "tripped": True}
+    assert d["results"]["prod"]["tripped"] and not d["results"]["dev"]["tripped"] and not d["results"]["tmp"]["tripped"]
+    assert d["enforced"] == "deny" and llm.calls == 0
+    assert rules.lookup(WRITE_STATE, "resolved.writes[].path") == ["/w/a", "/etc/hosts"]
+    assert rules.lookup(WRITE_STATE, "resolved.script.path") == []
+
+
+def test_judge_threshold_precedence():
+    c = cfg({"id": "a", "question": "q"}, {"id": "b", "question": "q", "threshold": 0.95})
+    d = rules.evaluate(c, STATE, FakeLLM(p=0.9), judge_threshold=0.85)
+    assert d["results"]["a"]["tripped"] and not d["results"]["b"]["tripped"]
+    d = rules.evaluate(c, STATE, FakeLLM(p=0.8), judge_threshold=0.85)
+    assert not d["results"]["a"]["tripped"]
+
+
+def test_escalation_reasks_only_uncertain():
+    first = FakeLLM(by_keyword={}, p=0.5)
+    second = FakeLLM(p=0.95)
+    second.name = "fake:big"
+    c = cfg({"id": "a", "question": "q"}, {"id": "b", "question": "q2"})
+    d = rules.evaluate(c, STATE, first, escalate={"llm": second, "band": [0.3, 0.85]})
+    assert first.calls == 1 and second.calls == 1
+    assert d["escalated"] == ["a", "b"] and d["results"]["a"] == {"p": 0.95, "source": "escalated", "p0": 0.5, "tripped": True}
+    sure = FakeLLM(p=0.99)
+    d = rules.evaluate(c, STATE, sure, escalate={"llm": second, "band": [0.3, 0.85]})
+    assert "escalated" not in d and second.calls == 1  # confident answers are not re-asked

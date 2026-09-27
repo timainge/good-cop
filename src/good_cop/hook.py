@@ -102,11 +102,11 @@ def decide(sid: str, event: dict, ledger: dict, events: list[dict], cfg: dict, t
     state = context.build_state(event, ledger, summ, recent, cfg.get("max_state_tokens", 8000))
 
     needs_model = any(r.get("question") and rules.applies(r, event.get("tool")) for r in rules_cfg["rules"])
-    llm = None
+    opts = {}
     if needs_model:
         from good_cop import providers
-        llm = providers.make_llm(cfg["judge"], cfg.get("redact", "auto"))
-    decision = rules.evaluate(rules_cfg, state, llm, cfg["judge"].get("timeout", 3.0))
+        opts = providers.judge_options(cfg)
+    decision = rules.evaluate(rules_cfg, state, **opts)
     decision = {"seq": event["seq"], "ts": store.now(), "tool": event.get("tool"), **decision,
                 "hook_ms": round((time.monotonic() - t0) * 1000)}
     store.append_jsonl(store.session_dir(sid) / "decisions.jsonl", decision)

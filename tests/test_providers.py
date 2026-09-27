@@ -58,3 +58,33 @@ def test_local_endpoints_skip_redaction_and_auth(monkeypatch):
         sent.update(headers=headers) or {"answers": {"a": {"type": "noul", "noul": 0.4}}}))
     assert providers.make_llm(kev).decide({}, {"a": "q"}, timeout=1) == {"a": 0.4}
     assert sent["headers"] == {}
+
+
+def test_criteria_reach_jev_and_llm_prompt(monkeypatch):
+    from good_cop import judge
+    sent = {}
+    monkeypatch.setattr(providers, "_post", lambda url, headers, body, timeout, retries=0: (
+        sent.update(body=body) or {"answers": {"c": {"type": "noul", "noul": 0.9}}}))
+    cfg = {"enforce": False, "defaults": {"threshold": 0.6, "action": "ask"},
+           "rules": [{"id": "c", "question": "Does this commit?",
+                      "criteria": {"true": "runs git commit", "false": "anything else"}}]}
+    llm = providers.make_llm({"provider": "jev", "base_url": "http://127.0.0.1:1"})
+    rules.evaluate(cfg, {"call": {"tool": "Bash", "input": {"command": "git commit"}}}, llm)
+    assert sent["body"]["questions"]["c"] == {"type": "noul", "instructions": "Does this commit?",
+                                              "criteria": {"true": "runs git commit", "false": "anything else"}}
+    text = judge.prompt({}, {"c": {"question": "Does this commit?", "criteria": {"true": "runs git commit", "false": "x"}}})
+    assert "Yes means: runs git commit" in text and "No means: x" in text
+
+
+def test_post_retries_connect_errors(monkeypatch):
+    import httpx
+    calls = iter([httpx.ConnectTimeout("t"), httpx.Response(200, json={"ok": 2})])
+
+    def post(*a, **k):
+        v = next(calls)
+        if isinstance(v, Exception):
+            raise v
+        return v
+    monkeypatch.setattr(httpx, "post", post)
+    monkeypatch.setattr(providers.time, "sleep", lambda s: None)
+    assert providers._post("https://x", {}, {}, 1, retries=1) == {"ok": 2}
