@@ -383,7 +383,7 @@ Candidates from DataCamp's "Top 7 open-source Jev alternatives", judged on: runs
 - [ ] Capture real Cursor and Copilot payloads once those CLIs are installed, and turn their adapters from "from docs" into "verified".
 - [ ] Shell parser: `ledger.segments` splits on `( ) | ; &&` before handling quotes, so e.g. `sed '/a(b)/p'` can look like a script run. Use `shlex` with punctuation handling that respects quotes.
 -  Defer: A larger, human-labelled sample with real safety rules before drawing firm conclusions.
-- [ ] prepare repo for publishing as experimental, expanded readme with external facing content that explains what/why/how to get started with no assumption of project knowledge
-- [ ] add useful docs to the github wiki
+- [x] prepare repo for publishing as experimental, expanded readme with external facing content that explains what/why/how to get started with no assumption of project knowledge → README rewritten for newcomers (what/why/how, results, getting started for Claude Code and Codex, judges, rules, backtesting, harness support, limitations). Also added: MIT `LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`, package metadata, and CI on Linux and macOS (passing). History audited: no secrets (`.env.local` never committed), no personal paths or other project names. **Remaining (owner's call):** flip visibility to public (`gh repo edit --visibility public`), and set the repo description and topics.
+- [x] add useful docs to the github wiki → pages written and versioned in `docs/wiki/` (Home, Getting Started, Writing Rules, Choosing a Judge, Backtesting, Other Agents, FAQ, sidebar), published with `scripts/publish-wiki.sh`. **Blocked on one manual step:** GitHub only creates a wiki's git repo after its first page is made in the web UI, and wikis on private repos need a paid plan. Create a first page, then run the script.
  
 
