@@ -115,6 +115,24 @@ The cascade does what it's designed to do. Escalation is rare, p50 latency stays
 
 No contrived rule wins on both samples, so here a cascade is not worth it. **Adversarial calls are different.** On the [[Red-team]] suite, Jev scored command substitution, aliases and split-up deletes at 0.74–0.88, just under its threshold, while Haiku caught all three. Jev → Haiku caught 17/17 scenarios against Jev's 14/17. Whether that holds on real sessions is the R0 question.
 
+
+## Rolling summary: does it help the judge? (2026-10-03)
+
+The optional summary (goal, current task, intent; regenerated every 8 events) was replayed incrementally with no future leakage on the fixed 150-call sample with the criteria rules, written by Haiku. Mean F1 / mean recall on identical calls ([`evals/summary/run.sh`](https://github.com/timainge/good-cop/blob/main/evals/summary/run.sh)):
+
+| judge | t=0.5 | t=0.8 | t=0.9 |
+|---|---|---|---|
+| Haiku, no summary | 0.85 / 1.00 | 0.86 / 1.00 | 0.82 / 0.86 |
+| Haiku, with summary | 0.88 / 1.00 | 0.88 / 1.00 | 0.81 / 0.84 |
+| Jev, no summary | 0.86 / 1.00 | **0.98 / 0.96** | **0.95 / 0.93** |
+| Jev, with summary | 0.86 / 1.00 | 0.95 / 0.91 | 0.83 / 0.73 |
+
+- **No measurable gain for Haiku** (+0.03, inside the ±0.03 run-to-run spread), and **a loss for Jev** at its tuned thresholds: recall at 0.9 falls from 0.93 to 0.73.
+- **It's expensive.** Hundreds of extra LLM calls per long session; this backtest took ~35 minutes against ~1 without it.
+- **Caveat:** these rules are about the call itself (does it run tests, commit, edit markdown), so intent has little to add. A rule that genuinely depends on intent ("is this deploy what the user asked for?") might differ, but none of the shipped rules is like that.
+
+Decision: the summary stays **off by default** and is not recommended. It remains an option (`summary.enabled`) until a labelled intent-dependent rule shows a benefit; otherwise it's a candidate for removal.
+
 ## Speed
 
 Judge latency per tool call in backtest (all questions batched):

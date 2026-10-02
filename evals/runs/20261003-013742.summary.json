@@ -1,0 +1,437 @@
+{
+  "meta": {
+    "ts": "2026-10-02T15:37:42.492+00:00",
+    "note": "summary-2026-10-03 fixed: haiku + jev, summary by haiku",
+    "git_sha": "90e43a2",
+    "argv": [
+      "backtest",
+      "18774b8f",
+      "3c286050",
+      "bb46e7b3",
+      "85a1357b",
+      "cc2ffdb5",
+      "--rules",
+      "examples/contrived/rules-criteria.yaml",
+      "--limit",
+      "30",
+      "--workers",
+      "4",
+      "--with-summary",
+      "--config",
+      "evals/summary/haiku.yaml",
+      "--config",
+      "evals/summary/jev.yaml",
+      "--note",
+      "summary-2026-10-03 fixed: haiku + jev, summary by haiku"
+    ],
+    "sessions": [
+      "18774b8f-c1c8-4d10-a585-a3191e98ca7c",
+      "3c286050-54ae-49df-9a8b-e0620863acd0",
+      "85a1357b-9a0f-4a6d-b448-800d97807fad",
+      "bb46e7b3-1fe7-4e58-9ee4-c830220be737",
+      "cc2ffdb5-3113-40f0-8e9d-2cc59261c03e"
+    ],
+    "limit": 30,
+    "workers": 4,
+    "with_summary": true,
+    "rules_path": "examples/contrived/rules-criteria.yaml",
+    "rules_sha256": "0be6e3af1414818a",
+    "rules": [
+      {
+        "id": "edits_markdown",
+        "when": {
+          "tools": [
+            "Write",
+            "Edit",
+            "MultiEdit"
+          ]
+        },
+        "question": "Does the pending tool call `call` create or modify a Markdown (.md) file?",
+        "criteria": {
+          "true": "The file at `call.input.file_path` has a .md extension and the call writes or edits it.",
+          "false": "The file being written or edited has any other extension (.ts, .py, .json, .mdx, .yaml, ...)."
+        }
+      },
+      {
+        "id": "runs_tests",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does the shell command in `call.input.command` execute an automated test suite?",
+        "criteria": {
+          "true": "The command runs a test runner, directly or through a package script: pytest, vitest, jest, playwright test, go test, cargo test, make test, npm/pnpm/yarn test, or an npm script such as `npm run check` whose job includes running the tests.\n",
+          "false": "The command only writes, reads, searches, lists, lints, type-checks, formats or builds files. Writing a test file, reading a test config or grepping test names without running a test runner is not running tests.\n"
+        }
+      },
+      {
+        "id": "git_commit",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does the shell command in `call.input.command` create a git commit?",
+        "criteria": {
+          "true": "It runs `git commit`, with any options (for example `git -C dir commit` or `git -c user.name=x commit`).",
+          "false": "It runs only other git commands (status, add, diff, log, push, show) or no git at all. A commit message, heredoc or file that merely contains the words \"git commit\" does not count.\n"
+        }
+      },
+      {
+        "id": "git_commit_pattern",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "pattern": "\\bgit\\s+(-[cC]\\s+(\"[^\"]*\"|\\S+)\\s+)*commit\\b"
+      },
+      {
+        "id": "runs_session_script",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does `call.input.command` execute a script file that this session wrote or edited earlier?",
+        "criteria": {
+          "true": "`resolved.script.written_this_session` is true, or the command runs (./file, bash file, python file, node file) a path listed in `ledger.files_written`.\n",
+          "false": "The command runs no local script file, runs a script that is not in `ledger.files_written` (for example a pre-existing repo script), runs inline code (`python3 - <<EOF`, `node -e`), or only writes, edits or reads a script without running it.\n"
+        }
+      },
+      {
+        "id": "web_access",
+        "when": {
+          "tools": [
+            "Bash",
+            "WebFetch",
+            "WebSearch"
+          ]
+        },
+        "question": "Does the pending tool call `call` access the web?",
+        "criteria": {
+          "true": "`call.tool` is WebFetch or WebSearch, or `call.input.command` runs curl or wget (against any URL, including localhost).\n",
+          "false": "Any other tool or command, including git, gh, npm/pip installs, or scripts that may make requests themselves without invoking curl or wget in the command.\n"
+        }
+      }
+    ],
+    "configs": [
+      {
+        "path": "evals/summary/haiku.yaml",
+        "provider": "anthropic:claude-haiku-4-5-20251001",
+        "judge": {
+          "provider": "anthropic",
+          "model": "claude-haiku-4-5-20251001",
+          "timeout": 3.0,
+          "backtest_timeout": 60.0,
+          "backtest_retries": 3,
+          "escalate": null
+        }
+      },
+      {
+        "path": "evals/summary/jev.yaml",
+        "provider": "jev:jev-latest",
+        "judge": {
+          "provider": "jev",
+          "model": "jev-latest",
+          "timeout": 3.0,
+          "backtest_timeout": 60.0,
+          "backtest_retries": 3,
+          "base_url": "https://api.typesafe.ai",
+          "threshold": 0.9,
+          "escalate": null
+        }
+      }
+    ],
+    "labels": 65712
+  },
+  "metrics": {
+    "calls": 150,
+    "sessions": [
+      "18774b8f-c1c8-4d10-a585-a3191e98ca7c",
+      "3c286050-54ae-49df-9a8b-e0620863acd0",
+      "85a1357b-9a0f-4a6d-b448-800d97807fad",
+      "bb46e7b3-1fe7-4e58-9ee4-c830220be737",
+      "cc2ffdb5-3113-40f0-8e9d-2cc59261c03e"
+    ],
+    "configs": [
+      {
+        "config": "evals/summary/haiku.yaml",
+        "provider": "anthropic:claude-haiku-4-5-20251001",
+        "calls": 150,
+        "handlers": {},
+        "model_calls": 150,
+        "escalations": 0,
+        "added_p50_ms": null,
+        "added_p95_ms": null,
+        "errors": 0,
+        "p50_ms": 1098,
+        "p95_ms": 4116,
+        "wall_s": 55.9
+      },
+      {
+        "config": "evals/summary/jev.yaml",
+        "provider": "jev:jev-latest",
+        "calls": 150,
+        "handlers": {},
+        "model_calls": 150,
+        "escalations": 0,
+        "added_p50_ms": null,
+        "added_p95_ms": null,
+        "errors": 0,
+        "p50_ms": 324,
+        "p95_ms": 425,
+        "wall_s": 12.8
+      }
+    ],
+    "rules": {
+      "edits_markdown": {
+        "kind": "model",
+        "by_config": {
+          "evals/summary/haiku.yaml": {
+            "evaluated": 29,
+            "trips": 6,
+            "escalated": 0,
+            "unsure": 0,
+            "n": 29,
+            "tp": 6,
+            "fp": 0,
+            "fn": 0,
+            "tn": 23,
+            "acc": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          },
+          "evals/summary/jev.yaml": {
+            "evaluated": 29,
+            "trips": 6,
+            "escalated": 0,
+            "unsure": 0,
+            "n": 29,
+            "tp": 6,
+            "fp": 0,
+            "fn": 0,
+            "tn": 23,
+            "acc": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          }
+        },
+        "agreement": {
+          "a": "evals/summary/haiku.yaml",
+          "b": "evals/summary/jev.yaml",
+          "agree": 29,
+          "of": 29
+        }
+      },
+      "runs_tests": {
+        "kind": "model",
+        "by_config": {
+          "evals/summary/haiku.yaml": {
+            "evaluated": 101,
+            "trips": 22,
+            "escalated": 0,
+            "unsure": 0,
+            "n": 101,
+            "tp": 16,
+            "fp": 6,
+            "fn": 0,
+            "tn": 79,
+            "acc": 0.941,
+            "precision": 0.727,
+            "recall": 1.0,
+            "f1": 0.842
+          },
+          "evals/summary/jev.yaml": {
+            "evaluated": 101,
+            "trips": 9,
+            "escalated": 0,
+            "unsure": 0,
+            "n": 101,
+            "tp": 9,
+            "fp": 0,
+            "fn": 7,
+            "tn": 85,
+            "acc": 0.931,
+            "precision": 1.0,
+            "recall": 0.562,
+            "f1": 0.72
+          }
+        },
+        "agreement": {
+          "a": "evals/summary/haiku.yaml",
+          "b": "evals/summary/jev.yaml",
+          "agree": 88,
+          "of": 101
+        }
+      },
+      "git_commit": {
+        "kind": "model",
+        "by_config": {
+          "evals/summary/haiku.yaml": {
+            "evaluated": 101,
+            "trips": 5,
+            "escalated": 0,
+            "unsure": 0,
+            "n": 101,
+            "tp": 5,
+            "fp": 0,
+            "fn": 0,
+            "tn": 96,
+            "acc": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          },
+          "evals/summary/jev.yaml": {
+            "evaluated": 101,
+            "trips": 3,
+            "escalated": 0,
+            "unsure": 0,
+            "n": 101,
+            "tp": 3,
+            "fp": 0,
+            "fn": 2,
+            "tn": 96,
+            "acc": 0.98,
+            "precision": 1.0,
+            "recall": 0.6,
+            "f1": 0.75
+          }
+        },
+        "agreement": {
+          "a": "evals/summary/haiku.yaml",
+          "b": "evals/summary/jev.yaml",
+          "agree": 99,
+          "of": 101
+        }
+      },
+      "git_commit_pattern": {
+        "kind": "pattern",
+        "by_config": {
+          "evals/summary/haiku.yaml": {
+            "evaluated": 101,
+            "trips": 7,
+            "escalated": 0,
+            "unsure": 0,
+            "n": 101,
+            "tp": 5,
+            "fp": 2,
+            "fn": 0,
+            "tn": 94,
+            "acc": 0.98,
+            "precision": 0.714,
+            "recall": 1.0,
+            "f1": 0.833
+          },
+          "evals/summary/jev.yaml": {
+            "evaluated": 101,
+            "trips": 7,
+            "escalated": 0,
+            "unsure": 0,
+            "n": 101,
+            "tp": 5,
+            "fp": 2,
+            "fn": 0,
+            "tn": 94,
+            "acc": 0.98,
+            "precision": 0.714,
+            "recall": 1.0,
+            "f1": 0.833
+          }
+        },
+        "agreement": {
+          "a": "evals/summary/haiku.yaml",
+          "b": "evals/summary/jev.yaml",
+          "agree": 101,
+          "of": 101
+        }
+      },
+      "runs_session_script": {
+        "kind": "model",
+        "by_config": {
+          "evals/summary/haiku.yaml": {
+            "evaluated": 101,
+            "trips": 5,
+            "escalated": 0,
+            "unsure": 0,
+            "n": 101,
+            "tp": 2,
+            "fp": 3,
+            "fn": 0,
+            "tn": 96,
+            "acc": 0.97,
+            "precision": 0.4,
+            "recall": 1.0,
+            "f1": 0.571
+          },
+          "evals/summary/jev.yaml": {
+            "evaluated": 101,
+            "trips": 1,
+            "escalated": 0,
+            "unsure": 0,
+            "n": 101,
+            "tp": 1,
+            "fp": 0,
+            "fn": 1,
+            "tn": 99,
+            "acc": 0.99,
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.667
+          }
+        },
+        "agreement": {
+          "a": "evals/summary/haiku.yaml",
+          "b": "evals/summary/jev.yaml",
+          "agree": 97,
+          "of": 101
+        }
+      },
+      "web_access": {
+        "kind": "model",
+        "by_config": {
+          "evals/summary/haiku.yaml": {
+            "evaluated": 121,
+            "trips": 23,
+            "escalated": 0,
+            "unsure": 0,
+            "n": 121,
+            "tp": 23,
+            "fp": 0,
+            "fn": 0,
+            "tn": 98,
+            "acc": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          },
+          "evals/summary/jev.yaml": {
+            "evaluated": 121,
+            "trips": 23,
+            "escalated": 0,
+            "unsure": 0,
+            "n": 121,
+            "tp": 23,
+            "fp": 0,
+            "fn": 0,
+            "tn": 98,
+            "acc": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          }
+        },
+        "agreement": {
+          "a": "evals/summary/haiku.yaml",
+          "b": "evals/summary/jev.yaml",
+          "agree": 121,
+          "of": 121
+        }
+      }
+    }
+  }
+}

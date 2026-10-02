@@ -544,4 +544,4 @@ Prerequisite: R1 labels, aiming for at least 300 labelled calls and 30 positives
 - Evaluate the optional rolling summary: does `--with-summary` change judge quality on fuzzy rules? Keep it, or remove it.
 - Codex default model and CLI versions: re-check `codex exec` after CLI upgrades, since 0.151 couldn't use the newest model.
 
-**Status (2026-10-03):** Cursor/Copilot still blocked (CLIs not installed). Codex CLI is still 0.151.0 here (no upgrade to re-check). Summary evaluation not run: it needs labelled fuzzy rules to judge "quality", so it waits for R0/R1 like R2 step 4.
+**Status (2026-10-03):** Cursor/Copilot still blocked (CLIs not installed). Codex CLI is still 0.151.0 here (no upgrade to re-check). Summary evaluated on the labelled contrived sample (`evals/summary/run.sh`, run `summary-2026-10-03`): Haiku +0.03 F1 (noise), Jev worse at its tuned thresholds (t=0.9: 0.95/0.93 → 0.83/0.73), ~35× the backtest time. Decision: keep it off by default and unrecommended (Results page); remove it unless a labelled intent-dependent rule shows a benefit after R0/R1.
