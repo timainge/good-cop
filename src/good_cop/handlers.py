@@ -90,7 +90,14 @@ def _rate_ok(name: str, limit: int | None) -> bool:
         fcntl.flock(f, fcntl.LOCK_EX)
         f.seek(0)
         now = time.time()
-        times = [t for t in (float(x) for x in f.read().split() if x) if now - t < 60]
+        times = []
+        for x in f.read().split():
+            try:
+                t = float(x)
+            except ValueError:  # a corrupt line must not stop other handlers
+                continue
+            if now - t < 60:
+                times.append(t)
         ok = len(times) < limit
         if ok:
             times.append(now)
@@ -223,9 +230,14 @@ def _run_webhook(name: str, payload: dict, h: dict) -> int:
     if missing:  # the URL is often a secret: name the variable, never print the value
         store.log_error(f"handler {name!r}: {', '.join(missing)} not set; skipped")
         return NO_RETRY
-    body = fill(h["body"], fields(payload)) if "body" in h else payload
-    kw = {"content": body, "headers": {"content-type": "text/plain", **headers}} if isinstance(body, str) \
-        else {"json": body, "headers": headers}
+    try:
+        body = fill(h["body"], fields(payload)) if "body" in h else payload
+    except (ValueError, KeyError, IndexError, AttributeError) as e:  # a template bug: retrying won't help
+        store.log_error(f"handler {name!r}: body template error ({type(e).__name__}: {e})")
+        return NO_RETRY
+    if isinstance(body, str) and "content-type" not in {k.lower() for k in headers}:
+        headers["content-type"] = "text/plain"
+    kw = {"content": body, "headers": headers} if isinstance(body, str) else {"json": body, "headers": headers}
     try:
         r = httpx.request(h.get("method", "POST"), url, timeout=h.get("timeout", DEFAULT_TIMEOUT), **kw)
     except httpx.HTTPError as e:

@@ -3,13 +3,13 @@
 Every hook event is recorded, so good-cop can replay sessions through new rules or judges without running the agent again.
 
 ```sh
-uv run good-cop import --all                    # past Claude Code transcripts -> good-cop sessions
-uv run good-cop backtest <session…> | --all \
+good-cop import --all                    # past Claude Code transcripts -> good-cop sessions
+good-cop backtest <session…> | --all \
     --rules my-rules.yaml --limit 50 --note "prod rule v2"
-uv run good-cop backtest ... --config a.yaml --config b.yaml   # two judges, identical calls
-uv run good-cop review [--since 7d] [--from-backtest RUN]       # label calls interactively (below)
-uv run good-cop label <session> <seq> <rule_id> yes|no          # or record one answer by hand
-uv run good-cop evals                           # list runs: accuracy, latency, errors
+good-cop backtest ... --config a.yaml --config b.yaml   # two judges, identical calls
+good-cop review [--since 7d] [--from-backtest RUN]       # label calls interactively (below)
+good-cop label <session> <seq> <rule_id> yes|no          # or record one answer by hand
+good-cop evals                           # list runs: accuracy, latency, errors
 uv run python evals/thresholds.py "prod rule"   # re-score saved answers at other thresholds (free)
 ```
 

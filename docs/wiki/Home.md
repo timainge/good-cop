@@ -7,6 +7,7 @@
 **Start here**
 - [[Getting Started]]: install for Claude Code or Codex in two minutes
 - [[Writing Rules]]: patterns, facts and questions, with criteria
+- [[Rulesets]]: starter rulesets for solo developers, infrastructure, data and unattended agents
 - [[Choosing a Judge]]: Haiku, Jev, gpt-5-mini, local models; speed, cost, quality, privacy
 - [[Handlers]]: Slack, syslog or anything else when a rule trips
 - [[Backtesting]]: measure a rule on your past sessions before trusting it
@@ -15,6 +16,7 @@
 
 **Findings and background**
 - [Results: the judge comparison](Results)
+- [Red-team: what's caught when the agent is adversarial](Red-team)
 - [Model strategy: LLMs vs decision models vs code](Model-Strategy)
 - [Use cases: when good-cop fits](Use-Cases)
 - [Harness research: Codex, Cursor, Copilot, OpenCode](Harness-Research)

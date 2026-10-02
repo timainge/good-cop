@@ -268,8 +268,29 @@ def main(args) -> int:
     return 0
 
 
+def live_latency(sessions: list[str] | None = None) -> dict[str, dict]:
+    """Live hook and judge latency over recorded decisions, per judge provider."""
+    by: dict[str, dict] = {}
+    for sid in sessions if sessions is not None else store.list_sessions():
+        for d in store.read_jsonl(store.session_dir(sid) / "decisions.jsonl"):
+            b = by.setdefault(d.get("provider") or "code rules only", {"hook": [], "judge": [], "errors": 0, "sessions": set()})
+            b["hook"].append(d.get("hook_ms"))
+            b["judge"].append(d.get("latency_ms"))
+            b["errors"] += bool(d.get("error"))
+            b["sessions"].add(sid)
+    return {k: {"decisions": len(v["hook"]), "sessions": len(v["sessions"]), "errors": v["errors"],
+                "hook_p50": pct(v["hook"], .5), "hook_p95": pct(v["hook"], .95),
+                "judge_p50": pct(v["judge"], .5), "judge_p95": pct(v["judge"], .95)} for k, v in by.items()}
+
+
 def evals() -> int:
-    """One line per saved backtest run: when, note, providers, calls, label accuracy per model rule."""
+    """Live latency, then one line per saved backtest run: when, note, providers, calls, label accuracy."""
+    live = live_latency()
+    if live:
+        print("live (recorded hook decisions)")
+    for provider, x in live.items():
+        print(f"  {provider:<40} {x['decisions']} decisions / {x['sessions']} sessions  hook p50 {x['hook_p50']}ms "
+              f"p95 {x['hook_p95']}ms  judge p50 {x['judge_p50']}ms p95 {x['judge_p95']}ms  errors {x['errors']}")
     for path in sorted((store.ROOT / "backtests").glob("*.summary.json")):
         doc = store.read_json(path)
         meta, m = doc["meta"], doc["metrics"]

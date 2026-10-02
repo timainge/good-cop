@@ -43,7 +43,8 @@ def backtest_path(run: str) -> Path:
         return p.with_name(p.name.replace(".summary.json", ".jsonl"))
     base = store.ROOT / "backtests"
     if run == "latest":
-        return sorted(base.glob("*.jsonl"))[-1]
+        runs = sorted(base.glob("*.jsonl"))
+        return runs[-1] if runs else base / "none.jsonl"
     return base / f"{run}.jsonl"
 
 
@@ -61,7 +62,7 @@ def judge_name(rec: dict, res: dict) -> str:
 
 
 def threshold_for(rule: dict, source: str, rules_cfg: dict, judge_threshold) -> float:
-    return rules_mod.threshold(rule, source, rules_cfg["defaults"], judge_threshold if source == "model" else None)
+    return rules_mod.threshold(rule, source, rules_cfg["defaults"], judge_threshold)
 
 
 def build_queue(recs: list[dict], rules_cfg: dict, done: set, rule_filter: str | None = None,

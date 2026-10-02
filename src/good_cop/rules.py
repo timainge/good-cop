@@ -97,6 +97,15 @@ def _ask(llm, state, questions, timeout):
 DEFAULT_BAND = (0.3, 0.85)
 
 
+def _band(value, default=DEFAULT_BAND) -> tuple[float, float]:
+    """A [low, high] band from config; anything malformed falls back to the default."""
+    try:
+        low, high = (float(x) for x in value)
+        return low, high
+    except (TypeError, ValueError):
+        return tuple(default)
+
+
 def _chain(rule: dict, judges: dict, escalate: dict | None) -> list[str]:
     """Judge names a rule's question goes through, first to last."""
     if rule.get("cascade"):
@@ -158,11 +167,11 @@ def evaluate(rules_cfg: dict, state: dict, llm=None, timeout: float = 3.0,
 
     registry = {**(judges or {}), "default": {"llm": llm, "timeout": timeout, "threshold": judge_threshold}}
     if escalate:
-        registry["escalate"] = {"band": DEFAULT_BAND, **escalate}
+        registry["escalate"] = {**escalate, "band": _band(escalate.get("band"))}
     by_id = {r["id"]: r for r in selected}
     chains = {rid: _chain(by_id[rid], registry, escalate) for rid in questions}
-    bands = {rid: tuple(by_id[rid].get("band") or (registry["escalate"]["band"] if chains[rid][-1:] == ["escalate"]
-                                                   else defaults.get("band") or DEFAULT_BAND)) for rid in questions}
+    bands = {rid: _band(by_id[rid].get("band"), registry["escalate"]["band"] if chains[rid][-1:] == ["escalate"]
+                        else _band(defaults.get("band"))) for rid in questions}
     rung = {rid: 0 for rid in questions}
     asked, latency_ms, escalated, esc_ms, esc_error = {}, None, [], None, None
     for name in _order(list(chains.values())) if questions else []:
@@ -173,8 +182,10 @@ def evaluate(rules_cfg: dict, state: dict, llm=None, timeout: float = 3.0,
         probs, err, ms = _ask(j["llm"], state, batch, j.get("timeout", timeout))
         asked[name] = {"provider": getattr(j["llm"], "name", None), "ms": ms, "error": err, "rules": list(batch)}
         latency_ms = (latency_ms or 0) + ms
-        if name == "default":
+        if err and error is None and any(rung[rid] == 0 for rid in batch):  # a first judge failed
             error = err
+        if name == "default":
+            error = err or error
         elif name == "escalate":
             esc_ms, esc_error = ms, err
         for rid in batch:
@@ -214,7 +225,8 @@ def evaluate(rules_cfg: dict, state: dict, llm=None, timeout: float = 3.0,
         "results": results,
         "action": action,
         "enforced": action if rules_cfg.get("enforce") and action in ("ask", "deny") else "allow",
-        "provider": getattr(llm, "name", None) if "default" in asked else None,
+        "provider": getattr(llm, "name", None) if "default" in asked else next(
+            (a["provider"] for a in asked.values()), None),
         "latency_ms": latency_ms,
         "error": error,
         "state_hash": state_hash(state),

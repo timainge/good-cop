@@ -35,20 +35,25 @@ REDIRECTS = {">", ">>", ">|", "&>", "&>>", "<", "<<<", ">&", "<&"}
 WRITE_REDIRECTS = {">", ">>", ">|", "&>", "&>>"}
 
 
-WRITE_HEREDOC_RE = re.compile(r"(?:\bcat\b[^\n;&|]*>|\btee\b|>\s*\S+\s*$)")
+WRITE_PREFIX_RE = re.compile(r"\s*(?:cat\s+(?:-\S+\s+)*>>?\s*[^\s|;&<>]+|tee\s+(?:-a\s+)?[^\s|;&<>]+|cat)\s*")
+WRITE_SUFFIX_RE = re.compile(r"\s*(?:>>?\s*[^\s|;&<>]+)?\s*")
 
 
 def executed_text(command: str) -> str:
-    """The command minus heredoc bodies that are only written to a file (`cat > x.sh <<EOF`, `tee`):
-    that text is data until something runs it (then it's in `resolved.script`). Heredocs fed to an
-    interpreter (`python3 - <<EOF`, `bash <<EOF`), or in a command that also runs a local script
-    (`cat > x.sh <<EOF … EOF && ./x.sh`), are kept."""
+    """The command minus heredoc bodies that are only written to a file (`cat > x.sh <<EOF`,
+    `cat <<EOF > x.sh`, `tee x <<EOF`): that text is data until something runs it (then it's in
+    `resolved.script`). Heredocs fed to anything else (`python3 - > log <<EOF`, `tee f <<EOF | bash`),
+    or in a command that also runs a local script (`cat > x.sh <<EOF … EOF && ./x.sh`), are kept."""
     if executed_scripts(command):
         return command or ""
 
     def sub(m):
-        line = command[command.rfind("\n", 0, m.start()) + 1:m.start()]
-        return m.group(0)[:m.group(0).index("\n")] if WRITE_HEREDOC_RE.search(line) else m.group(0)
+        start = max(command.rfind(c, 0, m.start()) for c in "\n;&|") + 1
+        prefix, rest = command[start:m.start()], m.group(3)
+        bare_cat = prefix.strip() == "cat"
+        written = WRITE_PREFIX_RE.fullmatch(prefix) and WRITE_SUFFIX_RE.fullmatch(rest) and \
+            (not bare_cat or rest.strip().startswith(">"))
+        return m.group(0)[:m.group(0).index("\n")] if written else m.group(0)
     return HEREDOC_RE.sub(sub, command or "")
 
 

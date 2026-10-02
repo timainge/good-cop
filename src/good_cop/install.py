@@ -94,13 +94,18 @@ def _entry(harness: str, event: str) -> dict:
 
 
 def add_includes(path: Path, names: list[str]) -> list[str]:
-    """Add rulesets to a rules file's top-level `include: [...]`, keeping the rest of the text."""
+    """Add rulesets to a rules file's top-level `include:` (flow or block list), keeping the rest of the text."""
+    import yaml
     text = path.read_text()
-    m = re.search(r"^include:\s*\[(.*?)\]\s*$", text, re.M)
-    current = [n.strip().strip("'\"") for n in m.group(1).split(",") if n.strip()] if m else []
+    current = (yaml.safe_load(text) or {}).get("include") or []
+    current = [current] if isinstance(current, str) else list(current)
     merged = list(dict.fromkeys(current + names))
     line = f"include: [{', '.join(merged)}]"
-    text = text[:m.start()] + line + text[m.end():] if m else f"{line}\n{text}"
+    m = re.search(r"^include:[^\n]*\n?(?:[ \t]+-[^\n]*\n?|[ \t]*#[^\n]*\n?)*", text, re.M)
+    if m:
+        text = text[:m.start()] + line + "\n" + text[m.end():]
+    else:
+        text = f"{line}\n{text}"
     path.write_text(text)
     return merged
 

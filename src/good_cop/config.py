@@ -55,12 +55,16 @@ def _compose(path: Path, seen: tuple = ()) -> dict:
     if path in seen:
         raise ValueError(f"include cycle: {' -> '.join(str(p) for p in (*seen, path))}")
     doc = _load(path)
+    if not isinstance(doc, dict):
+        raise ValueError(f"{path}: expected a mapping at the top level")
+    includes = doc.get("include") or []
+    includes = [includes] if isinstance(includes, str) else includes
     layers = []
-    for name in doc.get("include") or []:
+    for name in includes:
         try:
-            layers.append(_compose(_resolve_include(name, path), (*seen, path)))
-        except (OSError, ValueError, yaml.YAMLError) as e:  # a bad include must not take every rule down
-            store.log_error(f"rules: {e}")
+            layers.append(_compose(_resolve_include(str(name), path), (*seen, path)))
+        except Exception as e:  # a bad include must not take every rule down
+            store.log_error(f"rules: include {name!r}: {e}")
     layers.append(doc)
     out = {"rules": [], "defaults": {}, "handlers": {}}
     index: dict[str, int] = {}
@@ -77,7 +81,7 @@ def _compose(path: Path, seen: tuple = ()) -> dict:
                         out["rules"].append(dict(r))
             elif k != "include":
                 out[k] = v
-    out["included"] = [n for n in doc.get("include") or []]
+    out["included"] = list(includes)
     return out
 
 

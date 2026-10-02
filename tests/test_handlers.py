@@ -176,3 +176,16 @@ def test_max_per_minute(home, monkeypatch):
     assert started == ["a", "a"]
     skipped = [f for s in ("s0", "s1") for f in store.read_jsonl(store.session_dir(s) / "handlers.jsonl") if f.get("skipped")]
     assert len(skipped) == 2
+
+
+def test_template_errors_not_retried_and_rate_file_tolerant(home, server):
+    url, got, _ = server
+    rc = {"handlers": {"bad": {"type": "webhook", "url": url, "body": '{"text": "{action}"}', "backoff": 5},
+                       "ct": {"type": "webhook", "url": url, "body": "{rules}", "headers": {"Content-Type": "text/markdown"}}}}
+    t = time.monotonic()
+    assert handlers.run("bad", handlers.SAMPLE, rc) == 1 and time.monotonic() - t < 2 and not got
+    assert "body template error" in (home / "errors.log").read_text()
+    assert handlers.run("ct", handlers.SAMPLE, rc) == 0 and got[0]["headers"]["Content-Type"] == "text/markdown"
+    (home / "handlers").mkdir(exist_ok=True)
+    (home / "handlers" / "x.rate").write_text("garbage\n")
+    assert handlers._rate_ok("x", 1)

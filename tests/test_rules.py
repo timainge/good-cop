@@ -130,3 +130,16 @@ def test_judge_options_builds_named_judges(monkeypatch):
     opts = providers.judge_options({"judge": {"provider": "x"}, "judges": {"fast": {"provider": "jev", "threshold": 0.9}}},
                                    backtest=True)
     assert opts["judges"]["fast"]["threshold"] == 0.9 and opts["judges"]["fast"]["timeout"] == 60
+
+
+def test_bad_band_config_never_raises():
+    d = rules.evaluate(cfg({"id": "a", "question": "q", "band": 0.5}), STATE, FakeLLM(p=0.5),
+                       escalate={"llm": FakeLLM(p=0.9), "band": None})
+    assert d["results"]["a"]["p"] == 0.9  # default band [0.3, 0.85) applied
+
+
+def test_named_first_judge_error_and_provider_reported():
+    fast, strong = named(0.0, "fake:fast", fail=True), named(0.9, "fake:strong")
+    d = rules.evaluate(cfg({"id": "a", "question": "q", "cascade": ["fast", "strong"]}), STATE, None,
+                       judges={"fast": fast, "strong": strong})
+    assert "TimeoutError" in d["error"] and d["provider"] == "fake:fast" and strong["llm"].calls == 0

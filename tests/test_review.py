@@ -83,3 +83,11 @@ def test_suggest_threshold():
     best = backtest.suggest_threshold(recs, "r", labels)
     assert best["f1"] == 1.0 and 0.4 < best["threshold"] <= 0.7
     assert backtest.suggest_threshold(recs, "r", {("s", 0, "r"): False}) is None
+
+
+def test_evals_reports_live_latency(home, payloads, fake_llm, capsys):
+    sid = record_live(home, payloads, fake_llm)
+    live = backtest.live_latency()
+    assert live["fake:1"]["decisions"] == 3 and live["fake:1"]["hook_p50"] is not None
+    assert live["code rules only"]["decisions"] == 4  # Write, Edit, Read, Agent: no question rule applies
+    assert backtest.evals() == 0 and "live (recorded hook decisions)" in capsys.readouterr().out

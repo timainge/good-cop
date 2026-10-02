@@ -97,7 +97,7 @@ Teams, Discord and most logging APIs only need a `webhook` handler with the righ
 ## Test a handler
 
 ```sh
-uv run good-cop handler slack --test     # sends a sample event; errors go to ~/.good-cop/errors.log
+good-cop handler slack --test     # sends a sample event; errors go to ~/.good-cop/errors.log
 ```
 
 ## How it behaves

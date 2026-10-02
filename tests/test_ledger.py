@@ -85,3 +85,13 @@ def test_executed_text_drops_written_heredocs_only():
     assert ledger.executed_text("cat > R.md <<EOF\nnpm install x\nEOF\nls") == "cat > R.md <<EOF\nls"
     assert "print(1)" in ledger.executed_text("python3 - <<EOF\nprint(1)\nEOF")
     assert "rm -rf ~" in ledger.executed_text("cat > x.sh <<EOF\nrm -rf ~\nEOF\nbash x.sh")  # written then run
+
+
+def test_executed_text_keeps_interpreter_heredocs_with_redirects():
+    for cmd in ["python3 - > /tmp/out.log <<'EOF'\nimport os; os.system('rm -rf ~')\nEOF",
+                "bash 2>/dev/null <<EOF\nrm -rf ~\nEOF",
+                "tee /dev/null <<EOF | bash\nrm -rf ~\nEOF"]:
+        assert "rm -rf ~" in ledger.executed_text(cmd), cmd
+    for cmd in ["cat > a.md <<EOF\nrm -rf ~\nEOF", "cat <<EOF > a.md\nrm -rf ~\nEOF", "tee -a a.md <<'X'\nrm -rf ~\nX"]:
+        assert "rm -rf ~" not in ledger.executed_text(cmd), cmd
+    assert "rm -rf ~" in ledger.executed_text("cat <<EOF\nrm -rf ~\nEOF")  # to stdout, not a file: keep

@@ -158,3 +158,19 @@ def test_install_ruleset_and_rules_cli(home, tmp_path, capsys):
 def test_bundled_default_is_solo_dev(home):
     by = {r["id"] for r in config.load_rules()["rules"]}
     assert by == {r["id"] for r in config.load_rules(config.rulesets()["solo-dev"])["rules"]}
+
+
+def test_include_robustness_and_block_lists(home, tmp_path):
+    (home / "list.yaml").write_text("- not a mapping\n")
+    write_rules(home, "include: [./list.yaml, solo-dev]\n")
+    assert "destructive_rm" in {r["id"] for r in config.load_rules()["rules"]}  # bad include logged, not fatal
+    write_rules(home, "include: solo-dev\n")  # a string, not a list
+    assert "destructive_rm" in {r["id"] for r in config.load_rules()["rules"]}
+    write_rules(home, "# mine\ninclude:\n  - data   # databases\nenforce: false\n")
+    assert install.add_includes(home / "rules.yaml", ["infra"]) == ["data", "infra"]
+    text = (home / "rules.yaml").read_text()
+    assert text.count("include") == 1 and "enforce: false" in text and "# mine" in text
+    assert yaml.safe_load(text)["include"] == ["data", "infra"]
+    write_rules(home, "include: [solo-dev]  # default\nrules: []\n")
+    assert install.add_includes(home / "rules.yaml", ["data"]) == ["solo-dev", "data"]
+    assert yaml.safe_load((home / "rules.yaml").read_text())["include"] == ["solo-dev", "data"]
