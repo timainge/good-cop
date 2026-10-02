@@ -26,11 +26,23 @@ TOOL_EVENTS = {"PreToolUse", "PostToolUse"}
 SETTINGS = TARGETS["claude"][0]
 
 
-def hook_command(harness: str = "claude", event: str | None = None) -> str:
-    exe = Path(sys.argv[0]).resolve()
+EPHEMERAL = {"/archive-v": "uvx good-cop", "/pipx/.cache/": "pipx run good-cop"}  # uvx / pipx run envs
+
+
+def entry_point(argv0: str | None = None) -> str:
+    """How hooks should invoke good-cop: this executable's absolute path (uv tool, pipx, a venv), or
+    the launcher when running from an ephemeral cache (`uvx`, `pipx run`) that may be pruned."""
+    exe = Path(argv0 or sys.argv[0]).resolve()
     if exe.name != "good-cop":
         exe = Path(shutil.which("good-cop") or "good-cop")
-    cmd = f"{shlex.quote(str(exe))} hook"
+    for marker, launcher in EPHEMERAL.items():
+        if marker in str(exe):
+            return launcher
+    return shlex.quote(str(exe))
+
+
+def hook_command(harness: str = "claude", event: str | None = None) -> str:
+    cmd = f"{entry_point()} hook"
     if harness != "claude":
         cmd += f" --harness {harness}"
     if event and TARGETS[harness][2] != "grouped":
@@ -113,6 +125,8 @@ def install(settings_path: str | None = None, harness: str = "claude", rulesets:
         if not (store.ROOT / name).exists():
             shutil.copy(config.DEFAULTS_DIR / name, store.ROOT / name)
     print(f"installed good-cop hooks for {harness} in {path}; config in {store.ROOT}")
+    if entry_point() in EPHEMERAL.values():
+        print(f"hooks run `{entry_point()} hook`; for faster hooks, `uv tool install good-cop` and re-run install")
     if rulesets:
         print(f"rules include: {', '.join(add_includes(store.ROOT / 'rules.yaml', list(rulesets)))}")
     if harness == "codex":

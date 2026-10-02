@@ -65,10 +65,19 @@ TypeSafe's guidance is to point questions at state paths and define what yes and
 | judge | fixed sample (150 calls) | held-out (450 calls) |
 |---|---|---|
 | **Jev** | 0.73 / 0.98 → **0.85 / 0.99** | 0.42 / 0.97 → **0.73 / 0.97** |
-| gpt-5-mini | 0.76 / 0.92 → 0.79 / 0.85 | 0.66 / 1.00 → 0.72 / 1.00 |
-| Haiku 4.5 | 0.90 / 0.99 → 0.89 / 0.99 | 0.62 / 1.00 → 0.57 / 0.92 |
 | Kev-4B | 0.71 / 0.95 → 0.71 / 0.86 (best threshold 0.75 → 0.76) | – |
-| qwen2.5-7b (Ollama) | 0.74 / 0.73 → **0.84 / 0.75** (p95 latency 15 → 36 s: longer prompts) | – |
+
+> **Correction (2026-10-03).** Until 0.2.0, criteria written as bare YAML `true:` / `false:` keys were parsed as booleans and **never reached text-LLM judges**. Jev and Kev received them, since JSON turns the keys into strings. The LLM rows first published here therefore measured the reworded *questions* without criteria. Re-run with criteria actually sent (re-scored against current labels, t=0.5, mean F1 / mean recall):
+>
+> | judge | sample | original questions | reworded questions, criteria dropped (as first published) | reworded + criteria sent |
+> |---|---|---|---|---|
+> | Haiku 4.5 | fixed | 0.88–0.91 / 1.00 | 0.89 / 1.00 | 0.85 / 1.00 |
+> | Haiku 4.5 | held-out | 0.62 / 1.00 | 0.57 / 0.92 | 0.60 / 1.00 |
+> | gpt-5-mini | fixed | 0.76 / 0.93 | 0.80 / 0.86 | 0.80 / 0.94 |
+> | gpt-5-mini | held-out | 0.66 / 1.00 | 0.72 / 1.00 | 0.67 / 0.97 |
+> | qwen2.5-7b | fixed | 0.74 / 0.73 | 0.84 / 0.75 | 0.84 / 0.80 |
+>
+> For the strong LLMs the conclusion stands, for a different reason: criteria are roughly neutral on F1 (within the ±0.03 run-to-run spread we measured for Haiku), and they restore recall the rewording had cost (Haiku held-out 0.92 → 1.00, gpt-5-mini fixed 0.86 → 0.94, qwen2.5-7b 0.75 → 0.80). The earlier explanations, "gpt-5-mini reads the 'no' definitions strictly" and "Haiku followed the question, not the criteria", were wrong: neither model had seen the criteria.
 
 **Jev with criteria at its tuned threshold:**
 
@@ -78,9 +87,9 @@ TypeSafe's guidance is to point questions at state paths and define what yes and
 | held-out | 0.71 / 0.97 → 0.79 / 0.97 | 0.92 / 0.97 → 0.84 / 0.97 |
 
 - **Criteria are a big win for Jev.** Held-out false positives fell from 31 to 3 on `runs_tests` and from 153 to 13 on `runs_session_script`. The gain is largest at the default threshold, so less tuning is needed. On the fixed sample, Jev with criteria is the best judge we've measured (F1 0.97).
-- **They also help the small local LLM.** qwen2.5-7b gains 0.10 F1. The explicit definitions do work its weaker reasoning couldn't.
-- **For the strong LLMs, criteria are roughly neutral.** gpt-5-mini gains F1 but loses some recall, reading the "no" definitions strictly. Haiku is unchanged on the fixed sample and slightly down on held-out, by two calls with `curl` buried in long commands. Kev, fine-tuned to imitate Jev, doesn't benefit the way Jev does.
-- **A wording lesson from the first attempt.** Version 1 asked "does this call fetch content from a URL?", with criteria listing WebSearch as yes. Haiku and gpt-5-mini followed the *question*: WebSearch scored 0.00. Jev followed the *criteria*. Keep the question and its criteria consistent. Only v2 numbers are reported above; v1 runs are in `evals/runs/` tagged `criteria-2026-09-28`.
+- **The small local LLM's gain came from rewording.** qwen2.5-7b's +0.10 F1 was measured without criteria (see the correction above), so it's the reworded questions that helped. With criteria actually sent, F1 is unchanged and recall rises 0.75 → 0.80.
+- **For the strong LLMs, criteria are roughly neutral on F1 and help recall** (see the correction above). Kev, fine-tuned to imitate Jev, doesn't benefit the way Jev does.
+- **A wording lesson from the first attempt.** Version 1 asked "does this call fetch content from a URL?", with criteria listing WebSearch as yes. Jev followed the *criteria*. Haiku and gpt-5-mini scored WebSearch 0.00, but they were never sent the criteria (the bug above), so this says nothing about how LLMs weigh the two. Keep the question and its criteria consistent anyway. v1 runs are in `evals/runs/` tagged `criteria-2026-09-28`; the corrected LLM runs are tagged `criteria-2026-10-03`.
 
 We kept the criteria. They're the rule's specification, they help the weaker judges most, and they cost the strong ones nothing that matters. (Scores here were re-scored against the final labels, after the parser fixes of 2026-09-28, so they may differ from earlier tables by a call or two.) good-cop rules take an optional `criteria: {true, false}`.
 
@@ -95,6 +104,16 @@ We kept the criteria. They're the rule's specification, they help the weaker jud
 | Jev → Haiku cascade | 0.95 / **0.99** | 0.73 / 0.97 | 11% / 3% of calls | 0.29 s / 1.3–2.9 s |
 
 The cascade does what it's designed to do. Escalation is rare, p50 latency stays at Jev's, and on the fixed sample it recovers the recall Jev loses at 0.9. On the held-out sessions, though, Haiku is the weaker judge on exactly the borderline calls (0.57 alone), so escalating to it hurts. **A cascade only helps when the second judge is better on the uncertain cases.** Here, Jev with criteria at ~0.9 is simpler and at least as good. The mechanism stays in good-cop for rules where a stronger second judge exists.
+
+**Per rule (2026-10-03).** Since 0.2.0, rules can choose their own cascade (`cascade: [fast, strong]`). [`evals/cascade_sim.py`](https://github.com/timainge/good-cop/blob/main/evals/cascade_sim.py) replays saved Jev and Haiku answers on identical calls to ask, per rule, whether Jev → Haiku would have helped (criteria rules, F1, band 0.5–0.9, Jev t=0.9, Haiku t=0.6):
+
+| rule | fixed: Jev / Haiku / cascade | held-out: Jev / Haiku / cascade |
+|---|---|---|
+| runs_tests | 0.77 / 0.82 / **0.97** | **0.94** / 0.63 / 0.86 |
+| runs_session_script | **1.00** / 0.50 / 0.80 | **0.67** / 0.29 / 0.32 |
+| git_commit, edits_markdown, web_access | cascade = Jev | cascade = Jev |
+
+No contrived rule wins on both samples, so here a cascade is not worth it. **Adversarial calls are different.** On the [[Red-team]] suite, Jev scored command substitution, aliases and split-up deletes at 0.74–0.88, just under its threshold, while Haiku caught all three. Jev → Haiku caught 17/17 scenarios against Jev's 14/17. Whether that holds on real sessions is the R0 question.
 
 ## Speed
 

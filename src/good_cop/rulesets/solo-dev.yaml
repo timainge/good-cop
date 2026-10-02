@@ -5,9 +5,28 @@ description: individual developers with broad permissions (default)
 rules:
   - id: destructive_rm
     when: {tools: [Bash]}
-    # rm with a recursive flag aimed at /, ~, $HOME (or their top-level glob)
-    pattern: '\brm\s+(?:-\S+\s+)*-[a-zA-Z]*[rR][a-zA-Z]*\s+(?:-\S+\s+)*["'']?(?:/|~|\$HOME|\$\{HOME\})/?\*?["'']?(?:\s|$|[;&|)])'
+    # rm with a recursive flag aimed at /, ~, $HOME (or their top-level glob); find … -delete / -exec rm there.
+    # Patterns also see each command with quotes removed and variables substituted (r''m, X=rm; $X).
+    pattern: '\brm\s+(?:-\S+\s+)*-[a-zA-Z]*[rR][a-zA-Z]*\s+(?:-\S+\s+)*["'']?(?:/|~|\$HOME|\$\{HOME\})/?\*?["'']?(?:\s|$|[;&|)])|\bfind\s+["'']?(?:/|~|\$HOME|\$\{HOME\})/?["'']?\s(?:[^;&|\n]*\s)?(?:-delete\b|-exec\s+rm\b)'
     action: deny
+
+  - id: destructive_script          # the same, inside a script the call runs (`bash x.sh`, `./x.sh`)
+    fact: resolved.script.head
+    matches: '\brm\s+(?:-\S+\s+)*-[a-zA-Z]*[rR][a-zA-Z]*\s+(?:-\S+\s+)*["'']?(?:/|~|\$HOME|\$\{HOME\})/?\*?["'']?(?:\s|$|[;&|)])|\b(?:curl|wget)\b[^|;&\n]*\|\s*(?:sudo\s+)?(?:ba|z)?sh\b'
+    action: deny
+
+  - id: tamper_write                # edits to good-cop's own rules/config or the harness's hook settings
+    fact: resolved.writes[].path
+    matches: '/\.good-cop/(?:rules|config)\.yaml$|/\.claude/settings(?:\.local)?\.json$|/\.codex/(?:hooks\.json|config\.toml)$|/\.cursor/hooks\.json$|/\.copilot/hooks/|/\.config/opencode/'
+
+  - id: tamper_command
+    when: {tools: [Bash]}
+    pattern: '\bgood-cop\s+uninstall\b|\b(?:rm|mv|truncate|chmod|sed\s+-i\S*)\b[^;&|\n]*(?:\.good-cop/|\.claude/settings|\.codex/hooks|\.cursor/hooks|\.copilot/hooks)'
+
+  - id: inline_prod_env             # `AWS_PROFILE=prod aws …`: the probes never see inline env
+    when: {tools: [Bash]}
+    fact: resolved.env[]
+    matches: '^(?:AWS_PROFILE|AWS_DEFAULT_PROFILE|KUBECONFIG|KUBE_CONTEXT|CLOUDSDK_ACTIVE_CONFIG_NAME|TF_WORKSPACE|DATABASE_URL|PGHOST|RAILS_ENV|DJANGO_SETTINGS_MODULE|ENVIRONMENT|DEPLOY_ENV|STAGE)=.*(?i:prod)'
 
   - id: force_push_main
     when: {tools: [Bash], command: '\bgit\b'}

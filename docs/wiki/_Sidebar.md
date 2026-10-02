@@ -2,6 +2,7 @@
 - [[Home]]
 - [[Getting Started]]
 - [[Writing Rules]]
+- [[Rulesets]]
 - [[Choosing a Judge]]
 - [[Handlers]]
 - [[Backtesting]]
@@ -10,6 +11,7 @@
 
 **Findings**
 - [[Results]]
+- [[Red-team]]
 - [[Model Strategy|Model-Strategy]]
 - [[Use Cases|Use-Cases]]
 - [[Harness Research|Harness-Research]]

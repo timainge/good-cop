@@ -13,6 +13,14 @@ rules:
     fact: ledger.env.aws_profile
     matches: '(?i)prod'
 
+  - id: prod_flag                  # a prod target named on the command line
+    when: {tools: [Bash]}
+    pattern: '(?i)(?:--context|--kube-context|--profile|--project|--subscription|-var-file|--env|--environment|--stage)[= ]["'']?[\w./:-]*prod|\b(?:use-context|workspace\s+select)\s+["'']?[\w./:-]*prod'
+
+  - id: prod_in_script             # the same, inside a script the call runs
+    fact: resolved.script.head
+    matches: '(?i)(?:--context|--kube-context|--profile|--project|--subscription|-var-file|--env|--environment|--stage)[= ]["'']?[\w./:$-]*prod|\b(?:use-context|workspace\s+select)\s+["'']?[\w./:$-]*prod|\bAWS_PROFILE=["'']?[\w-]*prod'
+
   - id: terraform_apply_destroy
     when: {tools: [Bash]}
     pattern: '\b(?:terraform|tofu|terragrunt)\s+(?:-\S+\s+)*(?:apply|destroy)\b|\b(?:cdk|pulumi)\s+(?:-\S+\s+)*(?:deploy|destroy|up)\b'

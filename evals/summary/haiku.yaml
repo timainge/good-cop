@@ -1,0 +1,3 @@
+# Haiku judge, with the rolling summary written by Haiku (backtest --with-summary uses the first config's summary settings).
+judge: {provider: anthropic, model: claude-haiku-4-5-20251001}
+summary: {enabled: true, every: 8, provider: anthropic, model: claude-haiku-4-5-20251001, timeout: 60}

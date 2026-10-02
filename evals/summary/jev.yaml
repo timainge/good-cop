@@ -1,0 +1,2 @@
+judge: {provider: jev, model: jev-latest, base_url: https://api.typesafe.ai, api_key_env: TYPESAFE_API_KEY, threshold: 0.9}
+summary: {enabled: true, every: 8, provider: anthropic, model: claude-haiku-4-5-20251001, timeout: 60}

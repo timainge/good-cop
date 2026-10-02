@@ -35,6 +35,23 @@ REDIRECTS = {">", ">>", ">|", "&>", "&>>", "<", "<<<", ">&", "<&"}
 WRITE_REDIRECTS = {">", ">>", ">|", "&>", "&>>"}
 
 
+WRITE_HEREDOC_RE = re.compile(r"(?:\bcat\b[^\n;&|]*>|\btee\b|>\s*\S+\s*$)")
+
+
+def executed_text(command: str) -> str:
+    """The command minus heredoc bodies that are only written to a file (`cat > x.sh <<EOF`, `tee`):
+    that text is data until something runs it (then it's in `resolved.script`). Heredocs fed to an
+    interpreter (`python3 - <<EOF`, `bash <<EOF`), or in a command that also runs a local script
+    (`cat > x.sh <<EOF … EOF && ./x.sh`), are kept."""
+    if executed_scripts(command):
+        return command or ""
+
+    def sub(m):
+        line = command[command.rfind("\n", 0, m.start()) + 1:m.start()]
+        return m.group(0)[:m.group(0).index("\n")] if WRITE_HEREDOC_RE.search(line) else m.group(0)
+    return HEREDOC_RE.sub(sub, command or "")
+
+
 def _newlines_to_semicolons(text: str) -> str:
     """Unquoted newlines separate commands; shlex would treat them as plain whitespace."""
     out, quote, escaped = [], None, False
@@ -53,9 +70,10 @@ def _newlines_to_semicolons(text: str) -> str:
     return "".join(out)
 
 
-def _parse(command: str, cwd: str | None) -> list[tuple[list[str], str | None, list[str]]]:
+def _parse(command: str, cwd: str | None, assigned: list | None = None) -> list[tuple[list[str], str | None, list[str]]]:
     """(tokens, cwd, redirect write targets) per simple command. Quote-aware: operators inside
-    quotes (`sed '/a(b)/p'`, `grep 'x|y'`) stay part of their word."""
+    quotes (`sed '/a(b)/p'`, `grep 'x|y'`) stay part of their word. `assigned` collects every
+    `VAR=value` (prefix or standalone) as "VAR=value"."""
     text = _newlines_to_semicolons(HEREDOC_RE.sub(lambda m: m.group(3), command or ""))
     try:
         lex = shlex.shlex(text, posix=True, punctuation_chars=True)
@@ -85,9 +103,13 @@ def _parse(command: str, cwd: str | None) -> list[tuple[list[str], str | None, l
             i += 1
         sub = lambda t: VAR_RE.sub(lambda m: env.get(m.group(1), m.group(0)), t)
         tokens, targets = [sub(t) for t in tokens], [sub(t) for t in targets]
+        if tokens[:1] == ["export"] and len(tokens) > 1 and ASSIGN_RE.match(tokens[1]):
+            tokens = tokens[1:]
         while tokens and ASSIGN_RE.match(tokens[0]):
             name, value = ASSIGN_RE.match(tokens[0]).groups()
             env[name] = value
+            if assigned is not None:
+                assigned.append(f"{name}={value}")
             tokens = tokens[1:]
         if tokens[:1] == ["cd"] and len(tokens) > 1:
             cwd = abspath(tokens[1], cwd)
@@ -104,6 +126,21 @@ def segments(command: str, cwd: str | None) -> list[tuple[list[str], str | None]
     the cwd for later segments, and `VAR=value` assignments earlier in the command are substituted.
     """
     return [(tokens, c) for tokens, c, _ in _parse(command, cwd) if tokens]
+
+
+def inline_env(command: str) -> list[str]:
+    """`VAR=value` assignments in a command (`AWS_PROFILE=prod aws …`, `export X=y; …`), as
+    "VAR=value" strings. The hook's own environment never sees these."""
+    out: list[str] = []
+    _parse(command, None, out)
+    return list(dict.fromkeys(out))
+
+
+def normalised(command: str) -> list[str]:
+    """Each simple command as the shell would see its words: quotes removed (`r''m` -> `rm`),
+    earlier `VAR=value` substituted, re-joined with shlex quoting. For patterns that evasion beats."""
+    word = lambda t: t if re.fullmatch(r"[\w@%+=:,./~*$-]+", t) else shlex.quote(t)
+    return [" ".join(word(t) for t in tokens) for tokens, _ in segments(command, None)]
 
 
 LAUNCHER_ARG_FLAGS = {"--with", "--from", "--python", "-p", "--project", "--directory", "-k", "-s"}
@@ -152,8 +189,26 @@ def shell_writes(command: str, cwd: str | None = None) -> list[str]:
             targets = targets + args
         elif prog[:1] in (["cp"], ["mv"]) and len(args) >= 2:
             targets = targets + [args[-1]]
+        elif prog[:1] == ["sed"] and any(t.startswith(("-i", "--in-place")) for t in prog[1:]):
+            targets = targets + _sed_files(prog[1:])
         out += [abspath(p, seg_cwd) for p in targets if p]
     return [p for p in dict.fromkeys(out) if p != "/dev/null" and "$" not in p and "*" not in p]
+
+
+def _sed_files(args: list[str]) -> list[str]:
+    """Files `sed -i` edits: bare words, minus the script (the first bare word unless -e/-f gave
+    one) and BSD's `-i ''` suffix."""
+    words, script_given, skip = [], False, False
+    for i, t in enumerate(args):
+        if skip:
+            skip = False
+        elif t in ("-e", "-f", "--expression", "--file"):
+            script_given, skip = True, True
+        elif t == "-i" and i + 1 < len(args) and args[i + 1] == "":
+            skip = True
+        elif t and not t.startswith("-"):
+            words.append(t)
+    return words if script_given else words[1:]
 
 
 def hosts_in(value) -> list[str]:

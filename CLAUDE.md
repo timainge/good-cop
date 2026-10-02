@@ -10,6 +10,9 @@ uv run pytest -q             # tests
 uv run good-cop --help       # CLI
 uv run good-cop import --all && uv run python examples/contrived/autolabel.py   # backtest data
 uv run good-cop backtest <sid…> --rules examples/contrived/rules.yaml --limit 50  # costs API calls
+uv run good-cop review --from-backtest latest         # label interactively
+uv run good-cop rules show [--ruleset infra]          # effective rules after include:
+uv run python evals/redteam/run.py                    # red-team, code rules only (also in pytest)
 ```
 
 Set `GOOD_COP_HOME=/some/tmp/dir` to keep dev runs out of `~/.good-cop`.
@@ -27,4 +30,5 @@ Public-facing docs (guides, results, model strategy, use cases, harness research
 - **Never log secrets.** Redaction runs on prompts for cloud providers; log counts, not values.
 - Tests use the `home` fixture (monkeypatched `store.ROOT`) and `fake_llm`; captured real hook payloads and a transcript live in `tests/fixtures/`. Tests must not call real model APIs.
 - State given to the judge must be a pure function of recorded events, so live and backtest produce the same `state_hash` (`test_replay_matches_live_state`). Anything read from disk or the environment goes into an event first.
+- Starter rulesets live in `src/good_cop/rulesets/` and ship in the wheel; every question rule needs `criteria` and `when.tools` (tested). A red-team scenario's `code_caught` is asserted in CI: when a fix changes it, update the scenario file.
 - Verify Claude Code hook schemas against the current hooks docs rather than trusting plan.md (see "Verify before building").

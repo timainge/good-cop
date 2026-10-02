@@ -31,8 +31,13 @@ def kind(rule: dict) -> str:
 
 
 def pattern_text(call: dict) -> str:
+    """What patterns match: a shell command (minus heredoc bodies only written to files), else the
+    tool input as JSON."""
     inp = call.get("input") or {}
-    return inp.get("command") if isinstance(inp.get("command"), str) else json.dumps(inp)
+    if isinstance(inp.get("command"), str):
+        from good_cop.ledger import executed_text
+        return executed_text(inp["command"]) if call.get("tool") == "Bash" else inp["command"]
+    return json.dumps(inp)
 
 
 def lookup(state, path: str) -> list:
@@ -130,6 +135,9 @@ def evaluate(rules_cfg: dict, state: dict, llm=None, timeout: float = 3.0,
     call = state["call"]
     defaults = rules_cfg["defaults"]
     text = pattern_text(call)
+    norm = [c for c in (state.get("resolved") or {}).get("commands") or [] if c not in (text or "")]
+    if norm:  # patterns also see the command with quotes removed and variables substituted
+        text = "\n".join([text or "", *norm])
     selected = [r for r in rules_cfg["rules"] if applies(r, call.get("tool"), text or "")]
     results, questions, error = {}, {}, None
 

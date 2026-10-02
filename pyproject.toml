@@ -1,6 +1,6 @@
 [project]
 name = "good-cop"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A second opinion on every tool call your coding agent makes: local-first guardrails for Claude Code and Codex"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -32,6 +32,9 @@ dev = ["pytest>=8"]
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/good_cop/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/good_cop"]

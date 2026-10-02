@@ -13,4 +13,31 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: uv sync
-      - run: uv run pytest -q
+      - run: uv run pytest -q   # includes the red-team regression (code rules only, no model calls)
+
+  # The wheel on a clean machine: install as a tool, add hooks, feed it a real hook payload.
+  smoke:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv build
+      - name: wheel contains bundled rules
+        run: |
+          unzip -l dist/*.whl | grep -q 'good_cop/defaults/rules.yaml'
+          unzip -l dist/*.whl | grep -q 'good_cop/rulesets/solo-dev.yaml'
+      - name: uv tool install, install hooks, run a hook
+        env:
+          GOOD_COP_HOME: ${{ runner.temp }}/gch
+        run: |
+          uv tool install dist/*.whl
+          good-cop install --settings "$RUNNER_TEMP/s.json" --ruleset infra
+          grep -q '"command": ".*good-cop hook"' "$RUNNER_TEMP/s.json"
+          head -n 5 tests/fixtures/hook_payloads.jsonl | while read -r line; do echo "$line" | good-cop hook; done
+          test -s "$GOOD_COP_HOME"/sessions/*/events.jsonl
+          ! test -s "$GOOD_COP_HOME/errors.log"
+          good-cop rules show | head -n 1
+          good-cop uninstall --settings "$RUNNER_TEMP/s.json"

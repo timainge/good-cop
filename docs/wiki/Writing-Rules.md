@@ -34,7 +34,7 @@ rules:
   pattern: 'rm\s+-rf\s+(/|~|\$HOME)(\s|$)'
   action: deny
 ```
-Matched against the shell command, or the JSON of the tool input for other tools.
+Matched against the shell command, or the JSON of the tool input for other tools. For shell commands, patterns also see each simple command with quotes removed and variables substituted, so `r''m -rf ~` and `X=rm; $X -rf ~` match. They skip heredoc bodies that are only written to a file (`cat > x.sh <<EOF … EOF`); that content is checked when it runs, through `resolved.script.head`.
 
 ## 2. Fact: a check on recorded state, no model
 ```yaml
@@ -53,6 +53,8 @@ The rule trips if **any** value at the path meets the condition (so `not_in` / `
 - `resolved.script.path`, `resolved.script.written_this_session`
 - `resolved.writes[].path`, `resolved.writes[].outside_cwd`
 - `resolved.hosts[]`: hosts in URLs in this call's input (shell commands, WebFetch, MCP arguments; not file contents)
+- `resolved.env[]`: inline assignments in a shell command, as `"VAR=value"` (`AWS_PROFILE=prod aws …`; the hook's own environment never sees these)
+- `resolved.commands[]`: simple commands whose words differ once quotes are removed and earlier variables substituted (`r''m -rf ~` → `rm -rf ~`). Patterns see these too.
 - `ledger.env.*` (git_branch, kube_context, aws_profile, tf_workspace)
 - `ledger.files_written`, `ledger.hosts_contacted`, `ledger.flags.*`
 
@@ -66,7 +68,7 @@ The rule trips if **any** value at the path meets the condition (so `not_in` / `
     false: It only writes, reads, lints, type-checks or builds; writing a test file is not running tests.
 ```
 - All questions that apply to a call go to the judge in **one** request.
-- **Write criteria.** They define yes and no, including the near-misses. In our evals they roughly doubled a decision model's F1 at the default threshold and helped the small local LLM, while leaving the strong LLMs about the same. Keep the question consistent with its criteria.
+- **Write criteria.** They define yes and no, including the near-misses. In our evals they roughly doubled a decision model's F1 at the default threshold. For LLMs (Haiku, gpt-5-mini, qwen2.5-7b) they left F1 about the same and improved recall. Keep the question consistent with its criteria.
 - Point at state paths in backticks (`call.input.command`, `ledger.files_written`).
 
 ## Thresholds

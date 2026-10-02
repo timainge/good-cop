@@ -63,6 +63,16 @@ def sync_ledger(session_id: str) -> tuple[dict, list[dict]]:
     return ledger, events
 
 
+def script_head(sid: str, post: dict) -> str:
+    """The script its pre_tool resolved, so a context switch inside `./deploy.sh` re-probes too."""
+    if not post.get("tool_use_id"):
+        return ""
+    for e in reversed(store.read_events(sid)):
+        if e["type"] == "pre_tool" and e.get("tool_use_id") == post["tool_use_id"]:
+            return ((e.get("resolved") or {}).get("script") or {}).get("head") or ""
+    return ""
+
+
 def handle(payload: dict, cfg: dict, t0: float | None = None) -> dict | None:
     t0 = t0 or time.monotonic()
     sid = payload["session_id"]
@@ -80,7 +90,8 @@ def handle(payload: dict, cfg: dict, t0: float | None = None) -> dict | None:
     if event["type"] == "session_start":
         store.append_event(sid, {"type": "probe", "facts": probes.run(probe_list, event.get("cwd"))})
     elif event["type"] == "post_tool" and event.get("tool") == "Bash":
-        hit = probes.triggered(probe_list, (event.get("input") or {}).get("command", ""))
+        text = (event.get("input") or {}).get("command", "")
+        hit = probes.triggered(probe_list, text + "\n" + script_head(sid, event))
         if hit:
             store.append_event(sid, {"type": "probe", "facts": probes.run(hit, event.get("cwd"))})
 

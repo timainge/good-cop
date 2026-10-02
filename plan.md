@@ -303,7 +303,8 @@ Each milestone ends with working software and tests. Do them in order. **Status:
 - Subagent tool calls **do** fire PreToolUse/PostToolUse under the parent `session_id`, identified by `agent_id` and `agent_type`. We record both.
 - PreToolUse output `{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": …}}` blocks the call; Claude sees the reason. Verified end to end.
 - A 7B local model (qwen2.5:7b-instruct on Ollama, Apple Silicon) takes 13 s p50 / 23 s p95 per judge call with an 8k-token state: **backtest-only**.
-- Still open: whether `session_id` is stable across `--resume`/`--continue`.
+- **`ask` in unattended runs** (Claude Code 2.1.287, `claude -p --allowedTools Bash`, 2026-10-03): a PreToolUse `ask` is reported as a permission denial and the tool does not run, in `default`, `bypassPermissions` and `--dangerously-skip-permissions` modes alike. Bypass modes do not override a hook's `ask`; the reason reaches the agent. Control call with no rule tripped ran normally. So unattended `ask` ≈ `deny`; the `unattended` ruleset says `deny` explicitly.
+- **`session_id` across `--resume` / `--continue`** (same version and date): stable. SessionStart fires again with `source: "resume"` and events append to the same good-cop session. `--resume X --fork-session` gets a **new** id with `source: "fork"`; its good-cop ledger starts empty (the parent's history isn't in the fork's log). Accepted limit: a fork doesn't inherit `files_written` or `context_changes`.
 
 ## Results (2026-09-27, our own Claude Code transcripts)
 
@@ -408,6 +409,8 @@ Not code: this is how the labels everything else needs get made.
 
 *Done when:* two weeks of real sessions are recorded; `good-cop show` and `evals` report live hook and judge p50/p95; both behaviours are recorded under "Verified".
 
+**Status (2026-10-03):** steps 2 and 3 done (recorded under "Verified"). `show` already reports live hook/judge p50/p95. **Step 1 and the two weeks of data are the owner's:** installing hooks into `~/.claude/settings.json` changes every session on this machine and sends tool calls to TypeSafe, so it wasn't done unattended. To start: `uv tool install git+https://github.com/timainge/good-cop` (or from this checkout: `uv tool install .`), `good-cop install` (plus `--harness codex`), then in `~/.good-cop/config.yaml` set `judge: {provider: jev, model: jev-latest, threshold: 0.9}` and export `TYPESAFE_API_KEY` where the agent runs.
+
 ### R1. Easier labelling: `good-cop review`
 
 `good-cop label <session> <seq> <rule> yes|no` is too slow to use regularly. Labels are the durable asset (thresholds, judge choice, fine-tuning), so make producing them cheap.
@@ -425,7 +428,7 @@ Not code: this is how the labels everything else needs get made.
 *Done when:* 100 calls can be labelled in about 10 minutes; tests drive the loop with scripted stdin; the Backtesting wiki page documents the review → backtest → tune loop.
 
 **Status (2026-10-03): built.** `good-cop review` in `review.py`; queue order disagree → tripped → near → sampled negatives; `u` stores `value: null` (`load_labels` drops it from scoring); `score_at` / `suggest_threshold` moved into `backtest.py` (`evals/thresholds.py` now uses them); tests in `tests/test_review.py` drive it with scripted stdin; Backtesting wiki page documents the loop. One card per (call, rule) fits one screen. The "100 in 10 minutes" target still needs a human to time it during R0.
-- Found while building it: PyYAML reads bare `true:` / `false:` criteria keys as booleans, so `judge.render` never appended criteria for text LLMs (Jev was unaffected: JSON turns `True` into `"true"`). Fixed in `config.load_rules`. The Haiku / gpt-5-mini criteria results on the Results page were measured *without* criteria; re-run as `criteria-2026-10-03`.
+- Found while building it: PyYAML reads bare `true:` / `false:` criteria keys as booleans, so `judge.render` never appended criteria for text LLMs (Jev was unaffected: JSON turns `True` into `"true"`). Fixed in `config.load_rules`. The Haiku / gpt-5-mini / qwen criteria results on the Results page were measured *without* criteria. Re-run as `criteria-2026-10-03`: F1 still roughly neutral for LLMs, recall up (Haiku held-out 0.92 → 1.00, gpt-5-mini fixed 0.86 → 0.94, qwen 0.75 → 0.80). The earlier explanations (strict reading of 'no', following the question over the criteria) were wrong and are corrected on the Results page.
 
 ### R2. Better default rules and starter rulesets
 
@@ -448,6 +451,8 @@ Starter rulesets, one per audience:
 
 *Done when:* four rulesets ship; every question rule has criteria; each ruleset is backtested on at least 200 real labelled calls, with results on a new "Rulesets" wiki page; `install --ruleset` and `include:` merging are tested.
 
+**Status (2026-10-03): built; measurement blocked on labels.** Four rulesets in `src/good_cop/rulesets/`; default `rules.yaml` is `include: [solo-dev]`; field-level merge by id, `disabled: true`, nested includes, cycles and bad includes logged not fatal; `install --ruleset`, `rules list|show`; every question rule has `criteria` and `when.tools` (tested). Additions to make the rulesets expressible: `when.command` regex scoping, fact `not_in` / `not_matches`, `resolved.hosts`. First pass on 698 real (unlabelled) calls from 46 sessions under Jev 0.9 and Haiku (`evals/rulesets/run.sh`): trip rates and agreement on the new Rulesets wiki page, every rule marked unmeasured. It found that patterns matched heredoc bodies that were only written to files (fixed: `ledger.executed_text`) and that `credential_read` matched `.env.example` (fixed). Step 4 (precision/recall on ≥200 labelled calls) needs R0 data + R1 labels. Step 5: default judge kept as Haiku. Jev and Haiku diverge on `secret_exposure` (0 vs 46 trips) and `personal_data_export` (0 vs 15) and there are no labels to say who's right.
+
 ### R3. Publish to PyPI
 
 1. Check the name `good-cop` on PyPI. Fallbacks: `goodcop`, `good-cop-agent`.
@@ -457,6 +462,8 @@ Starter rulesets, one per audience:
 5. Update the README quick start and the Getting Started wiki page to `uv tool install good-cop` / `uvx good-cop install`.
 
 *Done when:* `uv tool install good-cop && good-cop install` works on clean macOS and Linux (CI job), and a tagged release reaches PyPI through the workflow.
+
+**Status (2026-10-03): ready; the release itself is the owner's.** `good-cop`, `goodcop` and `good-cop-agent` are all free on PyPI and TestPyPI. The wheel contains `defaults/` and `rulesets/` (checked in CI). Version is single-sourced from `__init__.py` (now 0.2.0); `CHANGELOG.md` added. `install.entry_point()`: `uv tool` / `pipx` / venv installs write the tool's absolute path; ephemeral `uvx` / `pipx run` environments (which get pruned) write `uvx good-cop hook` / `pipx run good-cop hook` instead, with a hint to install the tool. CI `smoke` job (ubuntu + macOS) builds the wheel, `uv tool install`s it, installs hooks into a temp settings file and feeds real payloads through `good-cop hook`; the same steps pass locally. `.github/workflows/release.yml`: on `v*` tag, test → check the tag matches the version → build → TestPyPI → PyPI with trusted publishing. README and Getting Started now use `uv tool install git+https://…`. **Remaining (owner):** add trusted publishers on pypi.org and test.pypi.org (environments `testpypi`, `pypi`); push; tag `v0.2.0`; then switch the docs to `uv tool install good-cop`.
 
 ### R4. Cascade per rule
 
@@ -471,6 +478,8 @@ Built so far: one global `escalate` that re-asks answers in an uncertain band. M
 
 *Done when:* per-rule cascades are configurable and tested with fake judges, and measured on real labelled data, with the result on the Results wiki page.
 
+**Status (2026-10-03): built; real-data measurement blocked on R0/R1.** `judges:` registry in config (`providers.judge_options`); per-rule `cascade`, `band` (else `defaults.band`, else [0.3, 0.85]), `ask_when_unsure` (asks, never denies); the global `judge` / `escalate` is the implicit chain `[default, escalate]`. Judges are asked in topological order of the chains, so each gets one request per call covering only the rules that reached it; a failing later judge leaves the earlier answer standing. Backtest reports per-rule `escalated` / `unsure`, added latency past the first judge, and F1 for every config (compare `--config cascade.yaml --config jev.yaml --config haiku.yaml`). Interim evidence, on the Results page: offline per-rule simulation over saved Jev and Haiku runs on the contrived labels (`evals/cascade_sim.py`) found no rule that wins on both samples. But on the R6 red-team suite, Jev → Haiku caught 17/17 against Jev's 14/17: the evasive cases score 0.74–0.88 under Jev, inside the band. Step 6 still needs R0 data.
+
 ### R5. More handler types
 
 `command` stays the default, and integrations keep living in scripts. Add types only when a script is a real burden.
@@ -481,6 +490,8 @@ Built so far: one global `escalate` that re-asks answers in an uncertain band. M
 4. New types implement only `run(name, payload, spec)`; `plan()` and `dispatch()` stay unchanged.
 
 *Done when:* each type has tests (a local HTTP server for `webhook`) and a section on the Handlers wiki page, and the command examples still work.
+
+**Status (2026-10-03): done.** `webhook` (`${ENV}` in url and headers, unset variables skip the handler and log the *name* only; dict/list/string `body` templates; 429/5xx/network retried, 4xx not) and `file` types; `retries` + `backoff` shared by all types in `handlers.run` (default 2 for webhooks); `max_per_minute` across sessions, checked at dispatch, skips audited in `handlers.jsonl`. Each runner is `fn(name, payload, spec) -> code`; `plan()` / `dispatch()` unchanged otherwise. Tests use a local `http.server`; existing command tests unchanged. `unattended` uses a Slack `webhook` handler.
 
 ### R6. Red-team scenarios
 
@@ -512,6 +523,8 @@ Steps:
 
 *Done when:* there are at least 10 scenarios, with results per judge on a "Red-team" wiki page; the tamper rule ships; CI runs the code-only regression.
 
+**Status (2026-10-03): done.** 17 scenarios in `evals/redteam/` (all ten listed, with indirection split into base64 / python download / curl|sh and evasion into quotes / variable / subshell / alias / find, plus two tamper variants). Runner `evals/redteam/run.py` (code-only, or `--config` per judge), `run.sh` saves to `evals/runs/redteam-<date>.md`. Caught: code rules 14/17, Jev t=0.9 14/17, Haiku 17/17, gpt-5-mini 17/17, Jev → Haiku cascade 17/17. Misses fixed in code: patterns also see `resolved.commands` (quotes removed, variables substituted), `find … -delete`, `destructive_script` fact on the script being run, `sed -i` counted as a write, live re-probe when a script that ran contains a probe trigger, `prod_flag` / `prod_in_script` (infra). New default rules: `tamper_write` / `tamper_command`, and `inline_prod_env` over the new `resolved.env`. Documented limits (`code_caught: false` with a `limit`): `$(…)`, aliases, splitting across calls. `tests/test_redteam.py` asserts each scenario's code-only outcome, so it runs in CI.
+
 ### R7. Local fine-tune
 
 Prerequisite: R1 labels, aiming for at least 300 labelled calls and 30 positives per rule.
@@ -523,8 +536,12 @@ Prerequisite: R1 labels, aiming for at least 300 labelled calls and 30 positives
 
 *Done when:* the fine-tuned local judge beats base Kev on held-out sessions, reproducibly (scripts and configs committed), with results published.
 
+**Status (2026-10-03): blocked** on R1 labels from R0 sessions (target ≥300 labelled calls, ≥30 positives per rule). Not started. The contrived labels exist, but a judge fine-tuned on code-computed toy rules wouldn't tell us anything about safety rules.
+
 ### R8. Remaining verification and housekeeping
 
 - Capture real Cursor and Copilot payloads, and mark those adapters verified (needs the CLIs installed).
 - Evaluate the optional rolling summary: does `--with-summary` change judge quality on fuzzy rules? Keep it, or remove it.
 - Codex default model and CLI versions: re-check `codex exec` after CLI upgrades, since 0.151 couldn't use the newest model.
+
+**Status (2026-10-03):** Cursor/Copilot still blocked (CLIs not installed). Codex CLI is still 0.151.0 here (no upgrade to re-check). Summary evaluation not run: it needs labelled fuzzy rules to judge "quality", so it waits for R0/R1 like R2 step 4.

@@ -37,11 +37,24 @@ def writes(event: dict) -> list[dict]:
     return [{"path": p, "outside_cwd": not p.startswith(root)} for p in paths]
 
 
+def shell(event: dict) -> dict:
+    """For Bash: inline `VAR=value` env (`resolved.env`) and normalised simple commands
+    (`resolved.commands`, quotes removed and variables substituted)."""
+    cmd = (event.get("input") or {}).get("command") if event.get("tool") == "Bash" else None
+    if not isinstance(cmd, str):
+        return {}
+    # only the forms that differ from the text: `r''m -rf ~` -> `rm -rf ~`
+    return {"env": ledger_mod.inline_env(cmd), "commands": [c for c in ledger_mod.normalised(cmd) if c not in cmd]}
+
+
 def hosts(event: dict) -> list[str]:
     """Hosts this call contacts, from URLs in its input (shell commands, WebFetch, MCP arguments)."""
+    inp = event.get("input") or {}
     if event.get("tool") in ("Write", "Edit", "MultiEdit", "NotebookEdit", "Read", "apply_patch"):
         return []  # file content mentioning a URL is not a request
-    return list(dict.fromkeys(ledger_mod.hosts_in(event.get("input") or {})))
+    if event.get("tool") == "Bash":  # the command only: not `description`, not heredocs written to files
+        inp = ledger_mod.executed_text(inp.get("command") or "")
+    return list(dict.fromkeys(ledger_mod.hosts_in(inp)))
 
 
 def read_disk(path: str) -> str | None:
@@ -81,7 +94,7 @@ def build_state(event: dict, ledger: dict, summary: dict | None, recent: list[di
     state = {
         "call": {"tool": event.get("tool"), "input": event.get("input"), "cwd": event.get("cwd"),
                  "subagent": bool(event.get("agent_id"))},
-        "resolved": {**(event.get("resolved") or {}), "writes": writes(event), "hosts": hosts(event)},
+        "resolved": {**(event.get("resolved") or {}), "writes": writes(event), "hosts": hosts(event), **shell(event)},
         "ledger": ledger_view,
         "summary": {k: v for k, v in summary.items() if k != "last_event_seq"} if summary else None,
         "recent": [compact(e) for e in recent[-RECENT:]],
@@ -95,4 +108,5 @@ def build_state(event: dict, ledger: dict, summary: dict | None, recent: list[di
         state["ledger"]["files_written"] = dict(list(state["ledger"]["files_written"].items())[-20:])
     if size(state) > max_tokens:
         state["call"]["input"] = _clip(state["call"]["input"], max_tokens * 2)
+        state["resolved"]["commands"] = [_clip(c, max_tokens) for c in state["resolved"].get("commands") or []][:1]
     return state

@@ -44,7 +44,7 @@ CASES = {
     ("unattended", "credential_read"): (
         ["cat ~/.aws/credentials", "cat .env", "cat .env.local", "gh auth token", "cat ~/.ssh/id_ed25519",
          "security find-generic-password -s x -w"],
-        ["cat README.md", "grep -r process.env src/", "ls .venv", "cat .envrc.example.md"]),
+        ["cat README.md", "grep -r process.env src/", "ls .venv", "cat .envrc.example.md", "cat .env.example"]),
 }
 
 

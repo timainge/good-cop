@@ -69,3 +69,19 @@ def test_quoted_operators_are_not_separators():
     assert ledger.shell_writes("cp a b 2>/dev/null; echo 'x > y' > out.txt", "/w") == ["/w/b", "/w/out.txt"]
     assert ledger.shell_writes("echo hi 2>&1 >> log.txt", "/w") == ["/w/log.txt"]
     assert f("cd sub\n./run.sh", "/w") == ["/w/sub/run.sh"]
+
+
+def test_inline_env_normalised_and_sed_writes():
+    assert ledger.inline_env("AWS_PROFILE=prod aws s3 ls; export A=1 B=2") == ["AWS_PROFILE=prod", "A=1", "B=2"]
+    assert ledger.normalised("r''m -rf ~") == ["rm -rf ~"]
+    assert ledger.normalised("X=rm; $X -rf ~") == ["rm -rf ~"]
+    assert ledger.normalised("echo 'a b'") == ["echo 'a b'"]
+    assert ledger.shell_writes("sed -i '' 's/a/b/' /w/x.yaml", "/w") == ["/w/x.yaml"]
+    assert ledger.shell_writes("sed -i.bak -e s/x/y/ a b", "/w") == ["/w/a", "/w/b"]
+    assert ledger.shell_writes("sed -n 1,5p f", "/w") == []
+
+
+def test_executed_text_drops_written_heredocs_only():
+    assert ledger.executed_text("cat > R.md <<EOF\nnpm install x\nEOF\nls") == "cat > R.md <<EOF\nls"
+    assert "print(1)" in ledger.executed_text("python3 - <<EOF\nprint(1)\nEOF")
+    assert "rm -rf ~" in ledger.executed_text("cat > x.sh <<EOF\nrm -rf ~\nEOF\nbash x.sh")  # written then run

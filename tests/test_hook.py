@@ -102,3 +102,35 @@ def test_install_uninstall(home, tmp_path):
     assert (home / "rules.yaml").exists() and (home / "config.yaml").exists()
     cli.main(["uninstall", "--settings", str(settings)])
     assert json.loads(settings.read_text()) == {"model": "x", "hooks": {"Stop": [{"hooks": [{"type": "command", "command": "other"}]}]}}
+
+
+def test_context_switch_inside_script_reprobes(home, monkeypatch, tmp_path):
+    from good_cop import probes
+    script = tmp_path / "use.sh"
+    script.write_text("#!/bin/sh\nkubectl config use-context gke-prod-eu\n")
+    calls = []
+    monkeypatch.setattr(probes, "run", lambda ps, cwd: calls.append([p["name"] for p in ps]) or {"kube_context": "gke-prod-eu"})
+    cfg = config.load_config()
+    base = {"session_id": "s1", "cwd": str(tmp_path), "tool_name": "Bash", "tool_use_id": "t1",
+            "tool_input": {"command": "./use.sh"}}
+    write_rules(home, "rules: []\n")
+    hook.handle({**base, "hook_event_name": "PreToolUse"}, cfg)
+    hook.handle({**base, "hook_event_name": "PostToolUse", "tool_response": ""}, cfg)
+    assert calls == [["kube_context"]]  # triggered by the script's text, not the command
+    led = store.read_json(store.session_dir("s1") / "ledger.json")
+    assert led["env"]["kube_context"] == "gke-prod-eu"
+
+
+def test_entry_point_resolution(tmp_path):
+    from good_cop import install
+    exe = tmp_path / "tools" / "good-cop" / "bin" / "good-cop"
+    exe.parent.mkdir(parents=True)
+    exe.write_text("")
+    link = tmp_path / "good-cop"
+    link.symlink_to(exe)
+    assert install.entry_point(str(link)) == str(exe)  # uv tool / pipx: the tool env's real path
+    cache = tmp_path / ".cache" / "uv" / "archive-v0" / "abc" / "bin" / "good-cop"
+    cache.parent.mkdir(parents=True)
+    cache.write_text("")
+    assert install.entry_point(str(cache)) == "uvx good-cop"  # ephemeral: re-invoke through uvx
+    assert install.is_ours({"command": "uvx good-cop hook"})

@@ -37,11 +37,12 @@ A decision model given a precise yes/no spec matched or beat the LLMs at a fract
 Python 3.12+, [uv](https://docs.astral.sh/uv/), macOS or Linux.
 
 ```sh
-git clone https://github.com/timainge/good-cop && cd good-cop && uv sync
-uv run good-cop install                   # Claude Code (or: --harness codex)
+uv tool install git+https://github.com/timainge/good-cop   # PyPI release pending
+good-cop install                          # Claude Code (or: --harness codex; --ruleset infra|data|unattended)
 export ANTHROPIC_API_KEY=...              # default judge; see "Choosing a Judge"
 # use your agent, then:
-uv run good-cop show
+good-cop show
+good-cop review                           # label what it flagged
 ```
 
 It starts in log-only mode and fails open. → [Getting Started](https://github.com/timainge/good-cop/wiki/Getting-Started)
@@ -52,6 +53,8 @@ It starts in log-only mode and fails open. → [Getting Started](https://github.
 |---|---|
 | [Getting Started](https://github.com/timainge/good-cop/wiki/Getting-Started) | install for Claude Code or Codex |
 | [Writing Rules](https://github.com/timainge/good-cop/wiki/Writing-Rules) | patterns, facts, questions with criteria, thresholds |
+| [Rulesets](https://github.com/timainge/good-cop/wiki/Rulesets) | starter rulesets: solo-dev, infra, data, unattended |
+| [Red-team](https://github.com/timainge/good-cop/wiki/Red-team) | what the rules and judges catch when the agent is adversarial |
 | [Choosing a Judge](https://github.com/timainge/good-cop/wiki/Choosing-a-Judge) | Jev, Haiku, gpt-5-mini, local models, cascades |
 | [Handlers](https://github.com/timainge/good-cop/wiki/Handlers) | Slack, syslog or any command when a rule trips |
 | [Backtesting](https://github.com/timainge/good-cop/wiki/Backtesting) | measure rules and judges on your own history |

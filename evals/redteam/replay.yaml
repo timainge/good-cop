@@ -1,0 +1,2 @@
+# Replay settings for red-team scenarios: no summary, the default state cap.
+summary: {enabled: false}

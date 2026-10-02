@@ -26,4 +26,4 @@ rules:
 
   - id: credential_read
     when: {tools: [Bash, Read, "mcp__*"]}
-    pattern: '\.aws/credentials|\.ssh/id_|\.netrc\b|\.config/gh/hosts\.yml|\.docker/config\.json|\.kube/config|\.git-credentials|(?:^|[\s/"''=])\.env(?:\.[\w-]+)?(?:["''\s;|&)]|$)|\bsecurity\s+find-(?:generic|internet)-password\b|\bprint-access-token\b|\bgh\s+auth\s+token\b|\bop\s+(?:read|item\s+get)\b'
+    pattern: '\.aws/credentials|\.ssh/id_|\.netrc\b|\.config/gh/hosts\.yml|\.docker/config\.json|\.kube/config|\.git-credentials|(?:^|[\s/"''=])\.env(?!\.(?:example|sample|template|dist)\b)(?:\.[\w-]+)?(?:["''\s;|&)]|$)|\bsecurity\s+find-(?:generic|internet)-password\b|\bprint-access-token\b|\bgh\s+auth\s+token\b|\bop\s+(?:read|item\s+get)\b'

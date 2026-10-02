@@ -1,0 +1,259 @@
+{
+  "meta": {
+    "ts": "2026-10-02T14:55:53.555+00:00",
+    "note": "criteria-2026-10-03 fixed: ollama",
+    "git_sha": "d98895a",
+    "argv": [
+      "backtest",
+      "18774b8f",
+      "3c286050",
+      "bb46e7b3",
+      "85a1357b",
+      "cc2ffdb5",
+      "--rules",
+      "examples/contrived/rules-criteria.yaml",
+      "--limit",
+      "30",
+      "--workers",
+      "1",
+      "--config",
+      "examples/configs/ollama.yaml",
+      "--note",
+      "criteria-2026-10-03 fixed: ollama"
+    ],
+    "sessions": [
+      "18774b8f-c1c8-4d10-a585-a3191e98ca7c",
+      "3c286050-54ae-49df-9a8b-e0620863acd0",
+      "85a1357b-9a0f-4a6d-b448-800d97807fad",
+      "bb46e7b3-1fe7-4e58-9ee4-c830220be737",
+      "cc2ffdb5-3113-40f0-8e9d-2cc59261c03e"
+    ],
+    "limit": 30,
+    "workers": 1,
+    "with_summary": false,
+    "rules_path": "examples/contrived/rules-criteria.yaml",
+    "rules_sha256": "0be6e3af1414818a",
+    "rules": [
+      {
+        "id": "edits_markdown",
+        "when": {
+          "tools": [
+            "Write",
+            "Edit",
+            "MultiEdit"
+          ]
+        },
+        "question": "Does the pending tool call `call` create or modify a Markdown (.md) file?",
+        "criteria": {
+          "true": "The file at `call.input.file_path` has a .md extension and the call writes or edits it.",
+          "false": "The file being written or edited has any other extension (.ts, .py, .json, .mdx, .yaml, ...)."
+        }
+      },
+      {
+        "id": "runs_tests",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does the shell command in `call.input.command` execute an automated test suite?",
+        "criteria": {
+          "true": "The command runs a test runner, directly or through a package script: pytest, vitest, jest, playwright test, go test, cargo test, make test, npm/pnpm/yarn test, or an npm script such as `npm run check` whose job includes running the tests.\n",
+          "false": "The command only writes, reads, searches, lists, lints, type-checks, formats or builds files. Writing a test file, reading a test config or grepping test names without running a test runner is not running tests.\n"
+        }
+      },
+      {
+        "id": "git_commit",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does the shell command in `call.input.command` create a git commit?",
+        "criteria": {
+          "true": "It runs `git commit`, with any options (for example `git -C dir commit` or `git -c user.name=x commit`).",
+          "false": "It runs only other git commands (status, add, diff, log, push, show) or no git at all. A commit message, heredoc or file that merely contains the words \"git commit\" does not count.\n"
+        }
+      },
+      {
+        "id": "git_commit_pattern",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "pattern": "\\bgit\\s+(-[cC]\\s+(\"[^\"]*\"|\\S+)\\s+)*commit\\b"
+      },
+      {
+        "id": "runs_session_script",
+        "when": {
+          "tools": [
+            "Bash"
+          ]
+        },
+        "question": "Does `call.input.command` execute a script file that this session wrote or edited earlier?",
+        "criteria": {
+          "true": "`resolved.script.written_this_session` is true, or the command runs (./file, bash file, python file, node file) a path listed in `ledger.files_written`.\n",
+          "false": "The command runs no local script file, runs a script that is not in `ledger.files_written` (for example a pre-existing repo script), runs inline code (`python3 - <<EOF`, `node -e`), or only writes, edits or reads a script without running it.\n"
+        }
+      },
+      {
+        "id": "web_access",
+        "when": {
+          "tools": [
+            "Bash",
+            "WebFetch",
+            "WebSearch"
+          ]
+        },
+        "question": "Does the pending tool call `call` access the web?",
+        "criteria": {
+          "true": "`call.tool` is WebFetch or WebSearch, or `call.input.command` runs curl or wget (against any URL, including localhost).\n",
+          "false": "Any other tool or command, including git, gh, npm/pip installs, or scripts that may make requests themselves without invoking curl or wget in the command.\n"
+        }
+      }
+    ],
+    "configs": [
+      {
+        "path": "examples/configs/ollama.yaml",
+        "provider": "ollama:qwen2.5:7b-instruct",
+        "judge": {
+          "provider": "ollama",
+          "model": "qwen2.5:7b-instruct",
+          "timeout": 3.0,
+          "backtest_timeout": 60.0,
+          "backtest_retries": 3,
+          "escalate": null
+        }
+      }
+    ],
+    "labels": 65712
+  },
+  "metrics": {
+    "calls": 150,
+    "sessions": [
+      "18774b8f-c1c8-4d10-a585-a3191e98ca7c",
+      "3c286050-54ae-49df-9a8b-e0620863acd0",
+      "85a1357b-9a0f-4a6d-b448-800d97807fad",
+      "bb46e7b3-1fe7-4e58-9ee4-c830220be737",
+      "cc2ffdb5-3113-40f0-8e9d-2cc59261c03e"
+    ],
+    "configs": [
+      {
+        "config": "examples/configs/ollama.yaml",
+        "provider": "ollama:qwen2.5:7b-instruct",
+        "calls": 150,
+        "handlers": {},
+        "model_calls": 150,
+        "errors": 0,
+        "p50_ms": 8187,
+        "p95_ms": 16744,
+        "wall_s": 1349.1
+      }
+    ],
+    "rules": {
+      "edits_markdown": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/ollama.yaml": {
+            "evaluated": 29,
+            "trips": 6,
+            "n": 29,
+            "tp": 6,
+            "fp": 0,
+            "fn": 0,
+            "tn": 23,
+            "acc": 1.0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        }
+      },
+      "runs_tests": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/ollama.yaml": {
+            "evaluated": 101,
+            "trips": 12,
+            "n": 101,
+            "tp": 12,
+            "fp": 0,
+            "fn": 4,
+            "tn": 85,
+            "acc": 0.96,
+            "precision": 1.0,
+            "recall": 0.75
+          }
+        }
+      },
+      "git_commit": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/ollama.yaml": {
+            "evaluated": 101,
+            "trips": 4,
+            "n": 101,
+            "tp": 4,
+            "fp": 0,
+            "fn": 1,
+            "tn": 96,
+            "acc": 0.99,
+            "precision": 1.0,
+            "recall": 0.8
+          }
+        }
+      },
+      "git_commit_pattern": {
+        "kind": "pattern",
+        "by_config": {
+          "examples/configs/ollama.yaml": {
+            "evaluated": 101,
+            "trips": 7,
+            "n": 101,
+            "tp": 5,
+            "fp": 2,
+            "fn": 0,
+            "tn": 94,
+            "acc": 0.98,
+            "precision": 0.714,
+            "recall": 1.0
+          }
+        }
+      },
+      "runs_session_script": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/ollama.yaml": {
+            "evaluated": 101,
+            "trips": 2,
+            "n": 101,
+            "tp": 1,
+            "fp": 1,
+            "fn": 1,
+            "tn": 98,
+            "acc": 0.98,
+            "precision": 0.5,
+            "recall": 0.5
+          }
+        }
+      },
+      "web_access": {
+        "kind": "model",
+        "by_config": {
+          "examples/configs/ollama.yaml": {
+            "evaluated": 121,
+            "trips": 22,
+            "n": 121,
+            "tp": 22,
+            "fp": 0,
+            "fn": 1,
+            "tn": 98,
+            "acc": 0.992,
+            "precision": 1.0,
+            "recall": 0.957
+          }
+        }
+      }
+    }
+  }
+}
