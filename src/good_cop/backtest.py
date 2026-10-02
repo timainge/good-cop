@@ -33,17 +33,18 @@ def replay(events: list[dict], cfg: dict, summariser=None) -> list[tuple[dict, d
     return out
 
 
-def load_labels() -> dict[tuple[str, int, str], bool]:
+def load_labels(include_unsure: bool = False) -> dict[tuple[str, int, str], bool | None]:
+    """Latest label per (session, seq, rule). Unsure answers (value null) are excluded from scoring."""
     labels = {}
     for r in store.read_jsonl(store.ROOT / LABELS):
         labels[(r["session"], r["seq"], r["rule_id"])] = r["value"]
-    return labels
+    return labels if include_unsure else {k: v for k, v in labels.items() if v is not None}
 
 
-def label(session_id: str, seq: int, rule_id: str, value: bool) -> int:
+def label(session_id: str, seq: int, rule_id: str, value: bool | None, **extra) -> int:
     sid = store.resolve_session(session_id) or session_id
     store.append_jsonl(store.ROOT / LABELS, {"session": sid, "seq": seq, "rule_id": rule_id,
-                                            "value": value, "ts": store.now()})
+                                            "value": value, "ts": store.now(), **extra})
     return 0
 
 
@@ -93,6 +94,38 @@ def _score(tp, fp, fn, tn) -> dict:
             "acc": round((tp + tn) / n, 3) if n else None,
             "precision": round(tp / (tp + fp), 3) if tp + fp else None,
             "recall": round(tp / (tp + fn), 3) if tp + fn else None}
+
+
+THRESHOLDS = tuple(round(0.05 * i, 2) for i in range(1, 20))  # 0.05 .. 0.95
+
+
+def score_at(recs: list[dict], rule_id: str, labels: dict, t: float) -> dict:
+    """Re-score saved probabilities at threshold t against labels (no judge calls)."""
+    tp = fp = fn = tn = 0
+    for r in recs:
+        res, truth = r["results"].get(rule_id), labels.get((r["session"], r["seq"], rule_id))
+        if not res or res["p"] is None or truth is None:
+            continue
+        hit = res["p"] >= t
+        tp += hit and truth
+        fp += hit and not truth
+        fn += (not hit) and truth
+        tn += (not hit) and (not truth)
+    out = _score(tp, fp, fn, tn)
+    out["f1"] = round(2 * tp / (2 * tp + fp + fn), 3) if tp + fp + fn else None
+    return out
+
+
+def suggest_threshold(recs: list[dict], rule_id: str, labels: dict, thresholds=THRESHOLDS) -> dict | None:
+    """The threshold with the best F1 (ties: the higher one, fewer interruptions). None without positives."""
+    best = None
+    for t in thresholds:
+        s = score_at(recs, rule_id, labels, t)
+        if not s["tp"] + s["fn"]:
+            return None
+        if best is None or (s["f1"] or 0) >= (best["f1"] or 0):
+            best = {"threshold": t, **s}
+    return best
 
 
 def metrics(recs: list[dict], rule_list: list[dict], labels: dict, wall: dict | None = None) -> dict:

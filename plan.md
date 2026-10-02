@@ -248,6 +248,7 @@ Backtest:
 
 - `good-cop backtest [session|--all] [--config other.yaml] [--rules other.yaml] [--with-summary]`: rebuild the ledger from events, re-run rules over every recorded PreToolUse, and print a report: per-rule trip rate, agreement with recorded decisions, accuracy against labels (when present), and latency. Writes results to `~/.good-cop/backtests/<timestamp>.jsonl` and never touches session files. **This is the evaluation harness** for comparing providers, models and thresholds.
 - `good-cop label <session> <seq> <rule_id> yes|no`: append a human label to `~/.good-cop/labels.jsonl`.
+- `good-cop review [sessions | --since 7d] [--rule ID] [--from-backtest RUN]`: label calls interactively in value order (R1).
 - `good-cop evals`: list saved backtest runs with their note, providers, latency and per-rule label accuracy. Every backtest writes `<ts>.jsonl` (each decision) and `<ts>.summary.json` (run metadata: note, git sha, argv, sessions, rules as run, judge configs; plus metrics). `--note` labels a run. Summaries are copied to `evals/runs/` for write-ups.
 - `good-cop import [paths…|--all|--project x]`: convert Claude Code transcripts (`~/.claude/projects/*/*.jsonl`, plus their `subagents/`) into good-cop sessions so sessions recorded before install can be backtested. Hook-shaped payloads go through the same `normalise` as live; script heads come from replayed Write/Edit content; the only probe fact recovered is `git_branch`.
 
@@ -422,6 +423,9 @@ Not code: this is how the labels everything else needs get made.
 5. Keep it a plain terminal prompt (no TUI dependency).
 
 *Done when:* 100 calls can be labelled in about 10 minutes; tests drive the loop with scripted stdin; the Backtesting wiki page documents the review → backtest → tune loop.
+
+**Status (2026-10-03): built.** `good-cop review` in `review.py`; queue order disagree → tripped → near → sampled negatives; `u` stores `value: null` (`load_labels` drops it from scoring); `score_at` / `suggest_threshold` moved into `backtest.py` (`evals/thresholds.py` now uses them); tests in `tests/test_review.py` drive it with scripted stdin; Backtesting wiki page documents the loop. One card per (call, rule) fits one screen. The "100 in 10 minutes" target still needs a human to time it during R0.
+- Found while building it: PyYAML reads bare `true:` / `false:` criteria keys as booleans, so `judge.render` never appended criteria for text LLMs (Jev was unaffected: JSON turns `True` into `"true"`). Fixed in `config.load_rules`. The Haiku / gpt-5-mini criteria results on the Results page were measured *without* criteria; re-run as `criteria-2026-10-03`.
 
 ### R2. Better default rules and starter rulesets
 

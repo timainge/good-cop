@@ -45,6 +45,15 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("seq", type=int)
     s.add_argument("rule_id")
     s.add_argument("answer", choices=["yes", "no"])
+    s = sub.add_parser("review", help="label tool calls interactively: tripped, near-misses, a sample of negatives")
+    s.add_argument("sessions", nargs="*", help="session ids or prefixes (default: sessions active in the last 7d)")
+    s.add_argument("--since", help="sessions with events in this window, e.g. 7d, 12h")
+    s.add_argument("--rule", help="only this rule id")
+    s.add_argument("--from-backtest", metavar="RUN", help="take probabilities from a saved backtest run (id or 'latest')")
+    s.add_argument("--rules", help="rules file (default: the run's rules, else ~/.good-cop/rules.yaml)")
+    s.add_argument("--negatives", type=int, default=10, help="clear negatives to sample (default 10)")
+    s.add_argument("--seed", type=int, default=0)
+    s.add_argument("--labeller", help="name saved with each label (default: $USER)")
     s = sub.add_parser("import", help="import Claude Code transcripts as sessions (test data)")
     s.add_argument("paths", nargs="*")
     s.add_argument("--all", action="store_true", help="every transcript in ~/.claude/projects")
@@ -82,6 +91,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "label":
         from good_cop import backtest
         return backtest.label(args.session, args.seq, args.rule_id, args.answer == "yes")
+    if args.cmd == "review":
+        from good_cop import review
+        return review.main(args)
     if args.cmd == "import":
         from good_cop import transcripts
         return transcripts.main(args.paths, args.all, args.project, args.force)

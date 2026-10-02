@@ -14,20 +14,12 @@ labels = backtest.load_labels()
 def score(recs, rule_ids, t):
     f1s, recalls, positives = [], [], 0
     for rid in rule_ids:
-        tp = fp = fn = 0
-        for r in recs:
-            res, truth = r["results"].get(rid), labels.get((r["session"], r["seq"], rid))
-            if not res or res["p"] is None or truth is None:
-                continue
-            hit = res["p"] >= t
-            tp += hit and truth
-            fp += hit and not truth
-            fn += (not hit) and truth
-        positives += tp + fn
-        if tp + fp + fn:
-            f1s.append(2 * tp / (2 * tp + fp + fn))
-        if tp + fn:
-            recalls.append(tp / (tp + fn))
+        s = backtest.score_at(recs, rid, labels, t)
+        positives += s["tp"] + s["fn"]
+        if s["f1"] is not None:
+            f1s.append(s["f1"])
+        if s["recall"] is not None:
+            recalls.append(s["recall"])
     return sum(f1s) / len(f1s), sum(recalls) / len(recalls), positives
 
 

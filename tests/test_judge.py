@@ -17,3 +17,12 @@ def test_parse_garbage():
 def test_prompt_lists_ids():
     p = judge.prompt({"call": {}}, {"a": "Is it A?", "b": "Is it B?"})
     assert '"a": Is it A?' in p and '{"a": 0.0, "b": 0.0}' in p
+
+
+def test_yaml_criteria_keys_are_strings(home):
+    from conftest import write_rules
+    from good_cop import config
+    write_rules(home, "rules:\n  - {id: a, question: 'q?', criteria: {true: it does, false: it does not}}\n")
+    r = config.load_rules()["rules"][0]
+    assert r["criteria"] == {"true": "it does", "false": "it does not"}
+    assert "Yes means: it does" in judge.render({"question": r["question"], "criteria": r["criteria"]})

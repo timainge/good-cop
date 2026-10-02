@@ -43,4 +43,7 @@ def load_rules(path: str | Path | None = None) -> dict:
     rules["defaults"] = {"threshold": 0.6, "action": "ask", **(rules.get("defaults") or {})}
     rules.setdefault("rules", [])
     rules.setdefault("handlers", {})
+    for r in rules["rules"]:
+        if isinstance(r.get("criteria"), dict):  # YAML reads bare `true:` / `false:` keys as booleans
+            r["criteria"] = {str(k).lower() if isinstance(k, bool) else k: v for k, v in r["criteria"].items()}
     return rules
