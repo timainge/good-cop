@@ -84,3 +84,49 @@ def test_escalation_reasks_only_uncertain():
     sure = FakeLLM(p=0.99)
     d = rules.evaluate(c, STATE, sure, escalate={"llm": second, "band": [0.3, 0.85]})
     assert "escalated" not in d and second.calls == 1  # confident answers are not re-asked
+
+
+def named(p, name, threshold=None, fail=False):
+    llm = FakeLLM(p=p, fail=fail)
+    llm.name = name
+    return {"llm": llm, "timeout": 1.0, "threshold": threshold}
+
+
+def test_per_rule_cascade_batches_per_judge():
+    fast, strong = named(0.5, "fake:fast", threshold=0.9), named(0.95, "fake:strong")
+    default = FakeLLM(p=0.1)
+    c = cfg({"id": "a", "question": "qa", "cascade": ["fast", "strong"]},
+            {"id": "b", "question": "qb", "cascade": ["fast", "strong"], "band": [0.6, 0.9]},  # 0.5 is below b's band
+            {"id": "c", "question": "qc", "cascade": ["strong"]},
+            {"id": "d", "question": "qd"})                                                      # global judge
+    d = rules.evaluate(c, STATE, default, judges={"fast": fast, "strong": strong})
+    assert fast["llm"].calls == 1 and strong["llm"].calls == 1 and default.calls == 1  # one request per judge
+    assert d["results"]["a"] == {"p": 0.95, "source": "escalated", "p0": 0.5, "judge": "strong", "tripped": True}
+    assert d["results"]["b"] == {"p": 0.5, "source": "model", "judge": "fast", "tripped": False}  # fast's t=0.9
+    assert d["results"]["c"]["judge"] == "strong" and d["results"]["d"] == {"p": 0.1, "source": "model", "tripped": False}
+    assert set(d["judges"]) == {"default", "fast", "strong"} and sorted(d["judges"]["strong"]["rules"]) == ["a", "c"]
+    assert d["escalation_ms"] is not None
+
+
+def test_cascade_failure_keeps_earlier_answer_and_ask_when_unsure():
+    fast, broken = named(0.6, "fake:fast"), named(0.0, "fake:broken", fail=True)
+    c = cfg({"id": "a", "question": "qa", "cascade": ["fast", "broken"], "ask_when_unsure": True, "action": "deny",
+             "threshold": 0.9}, enforce=True)
+    d = rules.evaluate(c, STATE, None, judges={"fast": fast, "broken": broken})
+    assert d["results"]["a"]["p"] == 0.6 and d["results"]["a"]["unsure"] and not d["results"]["a"]["tripped"]
+    assert d["action"] == d["enforced"] == "ask"  # unsure asks, never denies
+    assert "TimeoutError" in d["judges"]["broken"]["error"]
+
+
+def test_unknown_cascade_judge_falls_back_to_default():
+    default = FakeLLM(p=0.9)
+    d = rules.evaluate(cfg({"id": "a", "question": "q", "cascade": ["nope"]}), STATE, default, judges={})
+    assert default.calls == 1 and d["results"]["a"]["tripped"]
+
+
+def test_judge_options_builds_named_judges(monkeypatch):
+    from good_cop import providers
+    monkeypatch.setattr(providers, "make_llm", lambda c, r="auto": FakeLLM())
+    opts = providers.judge_options({"judge": {"provider": "x"}, "judges": {"fast": {"provider": "jev", "threshold": 0.9}}},
+                                   backtest=True)
+    assert opts["judges"]["fast"]["threshold"] == 0.9 and opts["judges"]["fast"]["timeout"] == 60

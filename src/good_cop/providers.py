@@ -160,12 +160,19 @@ def is_local(cfg: dict) -> bool:
 
 
 def judge_options(cfg: dict, backtest: bool = False) -> dict:
-    """rules.evaluate kwargs from config: judge llm + timeout + calibrated threshold + optional escalation."""
+    """rules.evaluate kwargs from config: judge llm + timeout + calibrated threshold, plus optional
+    escalation and named judges for per-rule cascades."""
     jcfg, redact_setting = cfg["judge"], cfg.get("redact", "auto")
     retries = jcfg.get("backtest_retries", 3) if backtest else 0
     opts = {"llm": make_llm({**jcfg, "retries": retries}, redact_setting),
             "timeout": jcfg.get("backtest_timeout", 60) if backtest else jcfg.get("timeout", 3.0),
             "judge_threshold": jcfg.get("threshold")}
+    named = cfg.get("judges") or {}
+    if named:  # per-rule cascades pick from these by name (`cascade: [fast, strong]`)
+        opts["judges"] = {name: {"llm": make_llm({**j, "retries": retries}, redact_setting),
+                                 "threshold": j.get("threshold"),
+                                 "timeout": j.get("backtest_timeout", 60) if backtest else j.get("timeout", 3.0)}
+                          for name, j in named.items()}
     ecfg = cfg.get("escalate")
     if ecfg:
         opts["escalate"] = {"llm": make_llm({**ecfg, "retries": retries}, redact_setting),

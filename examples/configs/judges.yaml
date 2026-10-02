@@ -1,0 +1,25 @@
+# Named judges for per-rule cascades. Rules opt in with `cascade: [fast, strong]`; rules without a
+# cascade use `judge` (and `escalate`, if set) as before.
+#
+#   rules:
+#     - id: prod_target
+#       question: ...
+#       cascade: [fast, strong]      # Jev first; re-ask Haiku when 0.5 <= p < 0.9
+#       band: [0.5, 0.9]             # default: defaults.band in rules.yaml, else [0.3, 0.85]
+#       ask_when_unsure: true        # still unsure after the last judge: ask (never deny)
+judge:
+  provider: jev
+  model: jev-latest
+  base_url: https://api.typesafe.ai
+  api_key_env: TYPESAFE_API_KEY
+  threshold: 0.9
+judges:
+  fast:
+    provider: jev
+    model: jev-latest
+    base_url: https://api.typesafe.ai
+    api_key_env: TYPESAFE_API_KEY
+    threshold: 0.9
+  strong:
+    provider: anthropic
+    model: claude-haiku-4-5-20251001

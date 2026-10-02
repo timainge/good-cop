@@ -22,4 +22,23 @@ escalate: {provider: anthropic, model: claude-haiku-4-5-20251001, band: [0.5, 0.
 ```
 It escalated 3–11% of calls and kept Jev's latency. It only helps when the second judge is better on the borderline cases, which wasn't true on our held-out data.
 
+**Per-rule cascades.** Since a cascade helps some rules and hurts others, rules can choose their own. Register named judges in config, then list them on a rule:
+```yaml
+# config.yaml
+judges:
+  fast:   {provider: jev, model: jev-latest, base_url: https://api.typesafe.ai, threshold: 0.9}
+  strong: {provider: anthropic, model: claude-haiku-4-5-20251001}
+# rules.yaml
+- id: prod_target
+  question: ...
+  cascade: [fast, strong]   # ask fast; if it's unsure, ask strong, whose answer stands
+  band: [0.5, 0.9]          # "unsure" (default: defaults.band, else [0.3, 0.85])
+  ask_when_unsure: true     # still unsure after the last judge: action ask (never deny)
+```
+- Each judge gets **one request per tool call**, covering only the rules that reached it.
+- A judge's `threshold` applies to its own answers; a rule's `threshold` still wins.
+- If a later judge fails or times out, the earlier answer stands.
+- Rules without `cascade` use `judge` and `escalate` as before. Unknown judge names fall back to `judge`.
+- Backtest reports per-rule `escalated` / `unsure` counts and the latency added past the first judge. To compare with each single judge, run the same calls under several configs: `good-cop backtest … --config cascade.yaml --config jev.yaml --config haiku.yaml`. Example: [examples/configs/judges.yaml](https://github.com/timainge/good-cop/blob/main/examples/configs/judges.yaml).
+
 **Privacy.** For cloud judges, good-cop redacts common secret formats and secret-named environment variable values from the state before sending. Localhost endpoints are not redacted (`redact: auto`). See [SECURITY.md](https://github.com/timainge/good-cop/blob/main/SECURITY.md).

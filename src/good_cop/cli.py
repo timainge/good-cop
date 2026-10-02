@@ -19,6 +19,15 @@ def main(argv: list[str] | None = None) -> int:
         s = sub.add_parser(name, help=f"{verb} the harness's hook config (default ~/.claude/settings.json)")
         s.add_argument("--settings", help="config file to edit instead")
         s.add_argument("--harness", choices=["claude", "codex", "cursor", "copilot"], default="claude")
+        if name == "install":
+            s.add_argument("--ruleset", action="append", default=[],
+                           help="add a starter ruleset to ~/.good-cop/rules.yaml's include list (repeatable)")
+    s = sub.add_parser("rules", help="list starter rulesets, or show the effective merged rules")
+    rs = s.add_subparsers(dest="rules_cmd", required=True)
+    rs.add_parser("list", help="bundled starter rulesets")
+    r = rs.add_parser("show", help="print the effective rules after includes and overrides")
+    r.add_argument("--ruleset", help="a bundled ruleset on its own")
+    r.add_argument("--rules", help="rules file (default ~/.good-cop/rules.yaml)")
     s = sub.add_parser("show", help="print ledger, summary and recent decisions")
     s.add_argument("session", nargs="?")
     s.add_argument("-n", type=int, default=10)
@@ -67,7 +76,12 @@ def main(argv: list[str] | None = None) -> int:
         return hook.main(args.harness, args.event)
     if args.cmd in ("install", "uninstall"):
         from good_cop import install
-        return getattr(install, args.cmd)(args.settings, args.harness)
+        if args.cmd == "install":
+            return install.install(args.settings, args.harness, args.ruleset)
+        return install.uninstall(args.settings, args.harness)
+    if args.cmd == "rules":
+        from good_cop import install
+        return install.rules_cmd(args)
     if args.cmd == "show":
         from good_cop import show
         return show.main(args.session, args.n)

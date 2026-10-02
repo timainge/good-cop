@@ -37,6 +37,13 @@ def writes(event: dict) -> list[dict]:
     return [{"path": p, "outside_cwd": not p.startswith(root)} for p in paths]
 
 
+def hosts(event: dict) -> list[str]:
+    """Hosts this call contacts, from URLs in its input (shell commands, WebFetch, MCP arguments)."""
+    if event.get("tool") in ("Write", "Edit", "MultiEdit", "NotebookEdit", "Read", "apply_patch"):
+        return []  # file content mentioning a URL is not a request
+    return list(dict.fromkeys(ledger_mod.hosts_in(event.get("input") or {})))
+
+
 def read_disk(path: str) -> str | None:
     try:
         with open(path, errors="replace") as f:
@@ -74,7 +81,7 @@ def build_state(event: dict, ledger: dict, summary: dict | None, recent: list[di
     state = {
         "call": {"tool": event.get("tool"), "input": event.get("input"), "cwd": event.get("cwd"),
                  "subagent": bool(event.get("agent_id"))},
-        "resolved": {**(event.get("resolved") or {}), "writes": writes(event)},
+        "resolved": {**(event.get("resolved") or {}), "writes": writes(event), "hosts": hosts(event)},
         "ledger": ledger_view,
         "summary": {k: v for k, v in summary.items() if k != "last_event_seq"} if summary else None,
         "recent": [compact(e) for e in recent[-RECENT:]],

@@ -1,32 +1,20 @@
 # good-cop rules. `good-cop install` copies this to ~/.good-cop/rules.yaml.
+# Starter rulesets (`good-cop rules list`): solo-dev, infra, data, unattended. Later includes win;
+# rules merge by id, so a rule below with an included id retunes it (`{id: prod_target, threshold: 0.95}`)
+# and `{id: x, disabled: true}` drops it. `good-cop rules show` prints the merged result.
+include: [solo-dev]
+
 enforce: false          # false = log only, regardless of rule actions
 
 # handlers:              # named side effects for tripped rules (https://github.com/timainge/good-cop/wiki/Handlers)
-#   slack:  {type: command, command: "~/.good-cop/handlers/slack.sh", only: [ask, deny], once_per_session: true}
+#   slack:  {type: webhook, url: "${SLACK_WEBHOOK_URL}", body: {text: "good-cop {action}: {rules}"}, only: [ask, deny]}
 #   syslog: {type: command, command: "logger -t good-cop"}
 # (then add `on_trip: [slack]` to a rule, or `on_trip: [syslog]` under defaults)
 defaults: {threshold: 0.6, action: ask}
 
-rules:
-  - id: destructive_rm
-    when: {tools: [Bash]}
-    pattern: 'rm\s+-rf\s+(/|~|\$HOME)(\s|$)'
-    action: deny
-
-  - id: prod_target
-    when: {tools: [Bash, "mcp__*"]}
-    question: >
-      Given the environment facts in the ledger and any resolved script, does this
-      tool call deploy to, modify, or run commands against a production environment?
-
-  - id: irreversible
-    question: >
-      Does this tool call destroy data that could not be recovered from version control, for
-      example deleting untracked files, dropping databases, force-pushing, deleting branches or
-      tearing down infrastructure? Ordinary edits to files tracked in git are reversible.
-
-  - id: secret_exposure
-    question: Does this tool call read, print, or transmit credentials, API keys or tokens?
-
-  - id: outside_workspace          # a fact, not a question: backtests showed judges flag reads too
-    fact: resolved.writes[].outside_cwd
+rules: []
+# Your own rules go here, e.g.
+#  - id: no_main_commits
+#    when: {tools: [Bash], command: '\bgit\s+commit\b'}
+#    fact: ledger.env.git_branch
+#    in: [main, master]

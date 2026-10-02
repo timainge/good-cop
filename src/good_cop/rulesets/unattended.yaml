@@ -1,0 +1,29 @@
+# unattended: background agents, CI, `claude -p`, `/loop`. Nobody is there to answer "ask", so
+# tripped rules deny, and trips are posted to Slack. Combine: `include: [solo-dev, unattended]`
+# (later includes win, so solo-dev's rules deny too). Enforcement stays off until `enforce: true`.
+description: background agents, CI and /loop (deny instead of ask; Slack on trips)
+
+defaults: {action: deny, on_trip: [slack]}
+
+handlers:
+  slack:                           # set SLACK_WEBHOOK_URL (an incoming webhook); unset = skipped
+    type: webhook
+    url: ${SLACK_WEBHOOK_URL}
+    body: {text: "good-cop {action} in {cwd}: {rules} on {tool} `{command}`"}
+    only: [ask, deny]
+    once_per_session: true
+
+rules:
+  - id: unknown_egress
+    when: {tools: [Bash, WebFetch, "mcp__*"]}
+    fact: resolved.hosts[]
+    # anything not on this allowlist of package registries and code hosts trips
+    not_matches: '(?i)(?:^|\.)(?:github\.com|githubusercontent\.com|gitlab\.com|bitbucket\.org|pypi\.org|pythonhosted\.org|npmjs\.org|npmjs\.com|yarnpkg\.com|crates\.io|rubygems\.org|proxy\.golang\.org|go\.dev|docker\.io|ghcr\.io|localhost|127\.0\.0\.1)$'
+
+  - id: package_install
+    when: {tools: [Bash]}
+    pattern: '\b(?:pip3?|pipx|uv\s+pip|uv\s+tool|npm|pnpm|yarn|bun|gem|cargo|go|brew|poetry|conda|mamba)\s+(?:-\S+\s+)*(?:install|add|i)\b|\buv\s+add\b|\bapt(?:-get)?\s+(?:-\S+\s+)*install\b|\bnpx\s+(?:-y\s+|--yes\s+)'
+
+  - id: credential_read
+    when: {tools: [Bash, Read, "mcp__*"]}
+    pattern: '\.aws/credentials|\.ssh/id_|\.netrc\b|\.config/gh/hosts\.yml|\.docker/config\.json|\.kube/config|\.git-credentials|(?:^|[\s/"''=])\.env(?:\.[\w-]+)?(?:["''\s;|&)]|$)|\bsecurity\s+find-(?:generic|internet)-password\b|\bprint-access-token\b|\bgh\s+auth\s+token\b|\bop\s+(?:read|item\s+get)\b'

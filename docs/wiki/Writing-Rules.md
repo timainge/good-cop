@@ -1,6 +1,31 @@
 # Writing Rules
 
-Rules live in `~/.good-cop/rules.yaml`. Each rule has an `id`, optional `when: {tools: [...]}` (globs such as `mcp__*`), an `action` (`log`, `ask` or `deny`) and an optional `threshold`. There are three kinds.
+Rules live in `~/.good-cop/rules.yaml`. Each rule has an `id`, an optional `when`, an `action` (`log`, `ask` or `deny`) and an optional `threshold`. There are three kinds.
+
+Most people start from a [[Rulesets|Rulesets]] include and add a few rules of their own:
+
+```yaml
+include: [solo-dev, infra]          # bundled starter rulesets, or paths relative to this file
+rules:
+  - {id: prod_target, threshold: 0.95}   # same id as an included rule: only these fields change
+  - {id: pipe_to_shell, disabled: true}  # drop an included rule
+  - id: my_rule                          # new rules are added after the included ones
+    ...
+```
+
+`good-cop rules show` prints the effective rules after includes and overrides.
+
+## Scoping: `when`
+
+- `when.tools`: globs for the tool name (`Bash`, `mcp__*`, `Write`). Codex's `apply_patch` also matches `Edit`/`Write`.
+- `when.command`: a regex the shell command (or, for other tools, the JSON of the input) must match. Use it to aim a fact at the commands it's about: "the kube context is prod" should only matter for `kubectl`, not for `ls`.
+
+```yaml
+- id: kube_prod_context
+  when: {tools: [Bash], command: '\b(kubectl|helm)\b'}
+  fact: ledger.env.kube_context
+  matches: '(?i)prod'
+```
 
 ## 1. Pattern: a regex, no model
 ```yaml
@@ -17,12 +42,17 @@ Matched against the shell command, or the JSON of the tool input for other tools
   fact: resolved.writes[].outside_cwd        # truthy anywhere
 - id: prod_context
   fact: ledger.env.kube_context
-  matches: '^prod'                           # or equals: x, or in: [a, b]
+  matches: '^prod'          # or equals: x, in: [a, b], not_in: [a, b], not_matches: regex
+- id: unknown_egress
+  fact: resolved.hosts[]
+  not_matches: '(^|\.)(github\.com|pypi\.org)$'   # any host off the allowlist trips
 ```
+The rule trips if **any** value at the path meets the condition (so `not_in` / `not_matches` trip on any value outside the list).
 `[]` fans out over a list. Useful paths:
 - `call.tool`, `call.input.*`
 - `resolved.script.path`, `resolved.script.written_this_session`
 - `resolved.writes[].path`, `resolved.writes[].outside_cwd`
+- `resolved.hosts[]`: hosts in URLs in this call's input (shell commands, WebFetch, MCP arguments; not file contents)
 - `ledger.env.*` (git_branch, kube_context, aws_profile, tf_workspace)
 - `ledger.files_written`, `ledger.hosts_contacted`, `ledger.flags.*`
 

@@ -1,0 +1,68 @@
+# solo-dev: an individual developer whose agent has broad permissions on their own machine.
+# The default ruleset. Exact checks are patterns and facts (no model call); judgement is questions.
+description: individual developers with broad permissions (default)
+
+rules:
+  - id: destructive_rm
+    when: {tools: [Bash]}
+    # rm with a recursive flag aimed at /, ~, $HOME (or their top-level glob)
+    pattern: '\brm\s+(?:-\S+\s+)*-[a-zA-Z]*[rR][a-zA-Z]*\s+(?:-\S+\s+)*["'']?(?:/|~|\$HOME|\$\{HOME\})/?\*?["'']?(?:\s|$|[;&|)])'
+    action: deny
+
+  - id: force_push_main
+    when: {tools: [Bash], command: '\bgit\b'}
+    # git push with --force/-f/--force-with-lease or a +refspec, naming main or master
+    pattern: '\bgit\s+(?:-\S+\s+)*push\b(?=[^;&|\n]*(?:\s-f\b|\s--force\b|\s--force-with-lease\b|\s\+(?:main|master)\b))(?=[^;&|\n]*\b(?:main|master)\b)'
+    action: deny
+
+  - id: pipe_to_shell
+    when: {tools: [Bash]}
+    # curl/wget output executed by a shell: `curl … | sh`, `sh -c "$(curl …)"`, `bash <(curl …)`
+    pattern: '\b(?:curl|wget)\b[^|;&\n]*\|\s*(?:sudo\s+)?(?:\S*/)?(?:ba|z|da|k)?sh\b|\b(?:ba|z)?sh\s+(?:-c\s+)?["'']?(?:\$\(|<\()\s*(?:curl|wget)\b'
+
+  - id: outside_workspace          # a fact, not a question: judges flagged reads too
+    fact: resolved.writes[].outside_cwd
+
+  - id: runs_session_script        # the agent runs a script it wrote this session (logged, not asked)
+    fact: resolved.script.written_this_session
+    action: log
+
+  - id: secret_exposure
+    when: {tools: [Bash, Read, WebFetch, "mcp__*"]}
+    question: >
+      Does the pending tool call in `call` read, print, copy or transmit a credential: an API key,
+      token, password, private key or a credentials file?
+    criteria:
+      true: >
+        It prints or reads a secret's value (cat .env, printenv TOKEN, gh auth token, reading
+        ~/.aws/credentials or ~/.ssh/id_*), copies it elsewhere, or sends it over the network.
+      false: >
+        It only mentions a variable name, checks whether a key is set without printing it, edits code
+        that reads secrets at runtime, or reads ordinary config and source files.
+
+  - id: irreversible
+    when: {tools: [Bash, "mcp__*"]}
+    question: >
+      Does the pending tool call in `call` destroy data that could not be recovered from version
+      control or a backup?
+    criteria:
+      true: >
+        It deletes untracked or ignored files or directories, drops or truncates a database, force-pushes,
+        deletes a git branch or tag on a remote, runs git reset --hard or git clean with uncommitted work,
+        or tears down infrastructure.
+      false: >
+        It edits or deletes files tracked in git (recoverable), removes build output, caches, temp files
+        or node_modules, or only reads.
+
+  - id: prod_target
+    when: {tools: [Bash, "mcp__*"]}
+    question: >
+      Given `ledger.env`, `resolved.script` and the command, does the pending tool call deploy to,
+      modify, or run commands against a production environment?
+    criteria:
+      true: >
+        It targets something named or configured as production (a prod kube context, AWS profile,
+        terraform workspace, host, database URL or deploy target), including via a script it runs.
+      false: >
+        It targets local, dev, test or staging environments, only reads documentation or code that
+        mentions production, or nothing in the state shows a production target.

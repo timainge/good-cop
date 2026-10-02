@@ -93,7 +93,8 @@ def _score(tp, fp, fn, tn) -> dict:
     return {"n": n, "tp": tp, "fp": fp, "fn": fn, "tn": tn,
             "acc": round((tp + tn) / n, 3) if n else None,
             "precision": round(tp / (tp + fp), 3) if tp + fp else None,
-            "recall": round(tp / (tp + fn), 3) if tp + fn else None}
+            "recall": round(tp / (tp + fn), 3) if tp + fn else None,
+            "f1": round(2 * tp / (2 * tp + fp + fn), 3) if tp + fp + fn else None}
 
 
 THRESHOLDS = tuple(round(0.05 * i, 2) for i in range(1, 20))  # 0.05 .. 0.95
@@ -111,9 +112,7 @@ def score_at(recs: list[dict], rule_id: str, labels: dict, t: float) -> dict:
         fp += hit and not truth
         fn += (not hit) and truth
         tn += (not hit) and (not truth)
-    out = _score(tp, fp, fn, tn)
-    out["f1"] = round(2 * tp / (2 * tp + fp + fn), 3) if tp + fp + fn else None
-    return out
+    return _score(tp, fp, fn, tn)
 
 
 def suggest_threshold(recs: list[dict], rule_id: str, labels: dict, thresholds=THRESHOLDS) -> dict | None:
@@ -142,8 +141,10 @@ def metrics(recs: list[dict], rule_list: list[dict], labels: dict, wall: dict | 
         for r in rs:
             for h in r.get("handlers") or []:
                 fired[h] = fired.get(h, 0) + 1
+        added = [r["escalation_ms"] for r in rs if r.get("escalation_ms") is not None]
         out["configs"].append({"config": c, "provider": rs[0]["provider"], "calls": len(rs), "handlers": fired,
                                "model_calls": sum(1 for x in lat if x is not None),
+                               "escalations": len(added), "added_p50_ms": pct(added, .5), "added_p95_ms": pct(added, .95),
                                "errors": sum(1 for r in rs if r.get("error")),
                                "p50_ms": pct(lat, .5), "p95_ms": pct(lat, .95),
                                "wall_s": (wall or {}).get(c)})
@@ -152,12 +153,14 @@ def metrics(recs: list[dict], rule_list: list[dict], labels: dict, wall: dict | 
         entry = {"kind": rules.kind(rule), "by_config": {}}
         trips = {}
         for c, rs in by_cfg.items():
-            ev, hits, tp, fp, fn, tn = 0, set(), 0, 0, 0, 0
+            ev, hits, tp, fp, fn, tn, esc, unsure = 0, set(), 0, 0, 0, 0, 0, 0
             for r in rs:
                 res = r["results"].get(rid)
                 if not res or res["p"] is None:  # errored judge calls have no answer: not scored
                     continue
                 ev += 1
+                esc += res.get("source") == "escalated"
+                unsure += bool(res.get("unsure"))
                 hit = bool(res.get("tripped"))
                 if hit:
                     hits.add((r["session"], r["seq"]))
@@ -168,7 +171,8 @@ def metrics(recs: list[dict], rule_list: list[dict], labels: dict, wall: dict | 
                     fn += (not hit) and truth
                     tn += (not hit) and (not truth)
             trips[c] = (hits, ev)
-            entry["by_config"][c] = {"evaluated": ev, "trips": len(hits), **_score(tp, fp, fn, tn)}
+            entry["by_config"][c] = {"evaluated": ev, "trips": len(hits), "escalated": esc, "unsure": unsure,
+                                     **_score(tp, fp, fn, tn)}
         if len(configs) > 1:
             (a, ev), (b, _) = trips[configs[0]], trips[configs[1]]
             entry["agreement"] = {"a": configs[0], "b": configs[1], "agree": ev - len(a ^ b), "of": ev}
@@ -183,6 +187,10 @@ def render(m: dict) -> str:
         lines.append(f"{Path(c['config']).name:<28}{c['provider']:<42}{c['model_calls']:>6}{c['errors']:>8}"
                      f"{str(c['p50_ms']):>9}{str(c['p95_ms']):>9}{str(c['wall_s'] or '-'):>8}")
     for c in m["configs"]:
+        if c.get("escalations"):
+            lines.append(f"  escalations ({Path(c['config']).name}): {c['escalations']} calls, "
+                         f"added p50 {c['added_p50_ms']} ms / p95 {c['added_p95_ms']} ms")
+    for c in m["configs"]:
         if c.get("handlers"):
             lines.append(f"  handlers that would fire ({Path(c['config']).name}): "
                          + ", ".join(f"{k} x{v}" for k, v in c["handlers"].items()))
@@ -191,9 +199,10 @@ def render(m: dict) -> str:
     for rid, entry in m["rules"].items():
         lines.append(f"\n  {rid}  [{entry['kind']}]")
         for c, x in entry["by_config"].items():
-            lab = (f"acc {fmt(x['acc'])} (P {fmt(x['precision'])}, R {fmt(x['recall'])}) n={x['n']}"
-                   if x["n"] else "no labels")
-            lines.append(f"    {Path(c).name:<26}{x['trips']:>5} / {x['evaluated']:<6}{lab}")
+            lab = (f"acc {fmt(x['acc'])} (P {fmt(x['precision'])}, R {fmt(x['recall'])}, F1 {fmt(x.get('f1'))}) "
+                   f"n={x['n']}" if x["n"] else "no labels")
+            extra = "".join(f"  {k} {x[k]}" for k in ("escalated", "unsure") if x.get(k))
+            lines.append(f"    {Path(c).name:<26}{x['trips']:>5} / {x['evaluated']:<6}{lab}{extra}")
         if "agreement" in entry:
             a = entry["agreement"]
             lines.append(f"    agreement {Path(a['a']).name} vs {Path(a['b']).name}: {a['agree']}/{a['of']}")

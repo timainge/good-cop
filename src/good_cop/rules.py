@@ -15,10 +15,15 @@ CODE_KINDS = ("pattern", "fact")
 EQUIVALENT_TOOLS = {"apply_patch": ("Edit", "Write", "MultiEdit")}  # Codex file edits
 
 
-def applies(rule: dict, tool: str) -> bool:
-    tools = (rule.get("when") or {}).get("tools")
+def applies(rule: dict, tool: str, text: str | None = None) -> bool:
+    """`when.tools` globs match the tool; `when.command` (regex) matches the command text, when given.
+    Without text (pre-filtering) only tools are checked, so the answer is a superset."""
+    when = rule.get("when") or {}
+    tools = when.get("tools")
     names = (tool or "", *EQUIVALENT_TOOLS.get(tool, ()))
-    return not tools or any(fnmatch.fnmatchcase(n, t) for n in names for t in tools)
+    if tools and not any(fnmatch.fnmatchcase(n, t) for n in names for t in tools):
+        return False
+    return text is None or not when.get("command") or re.search(when["command"], text) is not None
 
 
 def kind(rule: dict) -> str:
@@ -48,14 +53,19 @@ def lookup(state, path: str) -> list:
 
 
 def fact_holds(rule: dict, state: dict) -> bool:
-    """Any value at `fact` meets the condition: `equals`, `matches` (regex), `in`, else truthy."""
+    """Any value at `fact` meets the condition: `equals`, `matches` (regex), `in`, `not_in`,
+    `not_matches`, else truthy."""
     for v in lookup(state, rule["fact"]):
         if "equals" in rule:
             ok = v == rule["equals"]
         elif "matches" in rule:
             ok = isinstance(v, str) and re.search(rule["matches"], v) is not None
+        elif "not_matches" in rule:
+            ok = isinstance(v, str) and re.search(rule["not_matches"], v) is None
         elif "in" in rule:
             ok = v in rule["in"]
+        elif "not_in" in rule:
+            ok = v not in rule["not_in"]
         else:
             ok = bool(v)
         if ok:
@@ -79,21 +89,50 @@ def _ask(llm, state, questions, timeout):
     return probs, error, round((time.monotonic() - t0) * 1000)
 
 
-def evaluate(rules_cfg: dict, state: dict, llm=None, timeout: float = 3.0,
-             judge_threshold: float | None = None, escalate: dict | None = None) -> dict:
-    """Code rules (pattern, fact) first, then model rules in one judge call, then optionally
-    re-ask the uncertain ones with an escalation judge. Never raises.
+DEFAULT_BAND = (0.3, 0.85)
 
-    judge_threshold: the judge's calibrated trip threshold (config `judge.threshold`); a rule's own
-        `threshold` wins, then this, then the rules file default.
-    escalate: {"llm", "band": [low, high], "timeout"}; model answers with low <= p < high are re-asked.
+
+def _chain(rule: dict, judges: dict, escalate: dict | None) -> list[str]:
+    """Judge names a rule's question goes through, first to last."""
+    if rule.get("cascade"):
+        return [j for j in rule["cascade"] if j in judges] or ["default"]
+    return ["default", "escalate"] if escalate else ["default"]
+
+
+def _order(chains: list[list[str]]) -> list[str]:
+    """Judges in an order where every judge comes after the ones that precede it in any chain, so
+    each is asked once per call. Contradictory chains fall back to first-seen order."""
+    import graphlib
+    ts = graphlib.TopologicalSorter()
+    for c in chains:
+        ts.add(c[0])
+        for a, b in zip(c, c[1:]):
+            ts.add(b, a)
+    try:
+        return list(ts.static_order())
+    except graphlib.CycleError:
+        return list(dict.fromkeys(j for c in chains for j in c))
+
+
+def evaluate(rules_cfg: dict, state: dict, llm=None, timeout: float = 3.0,
+             judge_threshold: float | None = None, escalate: dict | None = None,
+             judges: dict | None = None) -> dict:
+    """Code rules (pattern, fact) first, then model rules through their judge chain: one request
+    per judge, covering the rules that reached it. Never raises.
+
+    judge_threshold: the default judge's calibrated trip threshold (config `judge.threshold`); a rule's
+        own `threshold` wins, then the answering judge's, then the rules file default.
+    escalate: {"llm", "band": [low, high], "timeout", "threshold"}; default-judge answers with
+        low <= p < high are re-asked (rules without their own `cascade`).
+    judges: named judges {name: {"llm", "timeout", "threshold"}} for per-rule `cascade: [a, b]`;
+        a rule's `band` (else `defaults.band`) sets when to move on to the next judge.
     """
     call = state["call"]
     defaults = rules_cfg["defaults"]
-    selected = [r for r in rules_cfg["rules"] if applies(r, call.get("tool"))]
+    text = pattern_text(call)
+    selected = [r for r in rules_cfg["rules"] if applies(r, call.get("tool"), text or "")]
     results, questions, error = {}, {}, None
 
-    text = pattern_text(call)
     for r in selected:
         k = kind(r)
         if k == "pattern":
@@ -109,57 +148,88 @@ def evaluate(rules_cfg: dict, state: dict, llm=None, timeout: float = 3.0,
             for r in selected if kind(r) != "model"):
         questions = {}
 
-    latency_ms, escalated, esc_ms, esc_error = None, [], None, None
-    if questions:
-        probs, error, latency_ms = _ask(llm, state, questions, timeout)
-        for rid in questions:
-            results[rid] = {"p": probs.get(rid), "source": "model"}
-        if escalate and not error:
-            low, high = escalate.get("band", (0.3, 0.85))
-            unsure = {rid: q for rid, q in questions.items()
-                      if results[rid]["p"] is not None and low <= results[rid]["p"] < high}
-            if unsure:
-                probs2, esc_error, esc_ms = _ask(escalate["llm"], state, unsure, escalate.get("timeout", timeout))
-                for rid, p in probs2.items():
-                    results[rid] = {"p": p, "source": "escalated", "p0": results[rid]["p"]}
-                    escalated.append(rid)
-                latency_ms += esc_ms
+    registry = {**(judges or {}), "default": {"llm": llm, "timeout": timeout, "threshold": judge_threshold}}
+    if escalate:
+        registry["escalate"] = {"band": DEFAULT_BAND, **escalate}
+    by_id = {r["id"]: r for r in selected}
+    chains = {rid: _chain(by_id[rid], registry, escalate) for rid in questions}
+    bands = {rid: tuple(by_id[rid].get("band") or (registry["escalate"]["band"] if chains[rid][-1:] == ["escalate"]
+                                                   else defaults.get("band") or DEFAULT_BAND)) for rid in questions}
+    rung = {rid: 0 for rid in questions}
+    asked, latency_ms, escalated, esc_ms, esc_error = {}, None, [], None, None
+    for name in _order(list(chains.values())) if questions else []:
+        batch = {rid: questions[rid] for rid in questions if rung[rid] is not None and chains[rid][rung[rid]] == name}
+        if not batch:
+            continue
+        j = registry[name]
+        probs, err, ms = _ask(j["llm"], state, batch, j.get("timeout", timeout))
+        asked[name] = {"provider": getattr(j["llm"], "name", None), "ms": ms, "error": err, "rules": list(batch)}
+        latency_ms = (latency_ms or 0) + ms
+        if name == "default":
+            error = err
+        elif name == "escalate":
+            esc_ms, esc_error = ms, err
+        for rid in batch:
+            prev = results.get(rid)
+            if prev and (err or rid not in probs):  # a later judge failed: keep the earlier answer
+                rung[rid] = None
+                continue
+            res = {"p": probs.get(rid), "source": "model" if not prev else "escalated"}
+            if prev:
+                res["p0"] = prev.get("p0", prev["p"])
+                escalated.append(rid)
+            if by_id[rid].get("cascade"):
+                res["judge"] = name
+            results[rid] = res
+            low, high = bands[rid]
+            more = rung[rid] + 1 < len(chains[rid])
+            rung[rid] = rung[rid] + 1 if more and res["p"] is not None and low <= res["p"] < high else None
 
     action = "allow"
     for r in selected:
         res = results.get(r["id"])
         if not res:
             continue
-        res["tripped"] = res["p"] is not None and res["p"] >= _threshold(r, res["source"], defaults,
-                                                                         judge_threshold, escalate)
-        if res["tripped"]:
-            a = r.get("action", defaults["action"])
-            if SEVERITY[a] > SEVERITY[action]:
-                action = a
+        judge_name = res.get("judge") or ("escalate" if res["source"] == "escalated" else "default")
+        t = threshold(r, res["source"], defaults, registry.get(judge_name, {}).get("threshold"))
+        res["tripped"] = res["p"] is not None and res["p"] >= t
+        a = r.get("action", defaults["action"]) if res["tripped"] else None
+        if not res["tripped"] and r.get("ask_when_unsure") and res["p"] is not None and r["id"] in bands:
+            low, high = bands[r["id"]]
+            if low <= res["p"] < high:  # the last judge is still unsure: let a human decide
+                res["unsure"] = True
+                a = "ask"
+        if a and SEVERITY[a] > SEVERITY[action]:
+            action = a
 
     out = {
         "results": results,
         "action": action,
         "enforced": action if rules_cfg.get("enforce") and action in ("ask", "deny") else "allow",
-        "provider": getattr(llm, "name", None) if questions else None,
+        "provider": getattr(llm, "name", None) if "default" in asked else None,
         "latency_ms": latency_ms,
         "error": error,
         "state_hash": state_hash(state),
     }
-    if escalated or esc_error:
-        out.update(escalated=escalated, escalation_provider=escalate["llm"].name,
-                   escalation_ms=esc_ms, escalation_error=esc_error)
+    if escalate and (esc_ms is not None):
+        out.update(escalated=[rid for rid in escalated if chains[rid][-1:] == ["escalate"]],
+                   escalation_provider=escalate["llm"].name, escalation_ms=esc_ms, escalation_error=esc_error)
+        if not out["escalated"] and not esc_error:
+            for k in ("escalated", "escalation_provider", "escalation_ms", "escalation_error"):
+                out.pop(k)
+    if set(asked) - {"default", "escalate"}:
+        out["judges"] = asked
+        if len(asked) > 1:  # time spent past the first judge
+            out["escalation_ms"] = latency_ms - next(iter(asked.values()))["ms"]
     return out
 
 
-def _threshold(rule, source, defaults, judge_threshold, escalate) -> float:
+def threshold(rule: dict, source: str, defaults: dict, judge_threshold: float | None = None) -> float:
     """A rule's own threshold, else the answering judge's calibrated one, else the rules default."""
     if "threshold" in rule:
         return rule["threshold"]
-    if source == "model" and judge_threshold is not None:
+    if source in ("model", "escalated") and judge_threshold is not None:
         return judge_threshold
-    if source == "escalated" and (escalate or {}).get("threshold") is not None:
-        return escalate["threshold"]
     return defaults["threshold"]
 
 

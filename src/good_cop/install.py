@@ -1,6 +1,7 @@
 """Merge / remove good-cop hooks in a harness's hook config (with backup). See plan.md §1, https://github.com/timainge/good-cop/wiki/Harness-Research."""
 
 import json
+import re
 import shlex
 import shutil
 import sys
@@ -80,7 +81,23 @@ def _entry(harness: str, event: str) -> dict:
     return {"command": cmd, "timeout": 10}
 
 
-def install(settings_path: str | None = None, harness: str = "claude") -> int:
+def add_includes(path: Path, names: list[str]) -> list[str]:
+    """Add rulesets to a rules file's top-level `include: [...]`, keeping the rest of the text."""
+    text = path.read_text()
+    m = re.search(r"^include:\s*\[(.*?)\]\s*$", text, re.M)
+    current = [n.strip().strip("'\"") for n in m.group(1).split(",") if n.strip()] if m else []
+    merged = list(dict.fromkeys(current + names))
+    line = f"include: [{', '.join(merged)}]"
+    text = text[:m.start()] + line + text[m.end():] if m else f"{line}\n{text}"
+    path.write_text(text)
+    return merged
+
+
+def install(settings_path: str | None = None, harness: str = "claude", rulesets: list[str] = ()) -> int:
+    unknown = [n for n in rulesets if n not in config.rulesets()]
+    if unknown:
+        print(f"unknown ruleset(s) {unknown}; available: {', '.join(config.rulesets())}")
+        return 1
     default, events, layout = TARGETS[harness]
     path = Path(settings_path) if settings_path else default
     settings = _strip(_load(path))
@@ -96,6 +113,8 @@ def install(settings_path: str | None = None, harness: str = "claude") -> int:
         if not (store.ROOT / name).exists():
             shutil.copy(config.DEFAULTS_DIR / name, store.ROOT / name)
     print(f"installed good-cop hooks for {harness} in {path}; config in {store.ROOT}")
+    if rulesets:
+        print(f"rules include: {', '.join(add_includes(store.ROOT / 'rules.yaml', list(rulesets)))}")
     if harness == "codex":
         print("codex: review and trust the hooks with /hooks (or pass --dangerously-bypass-hook-trust to codex exec)")
     return 0
@@ -108,3 +127,27 @@ def uninstall(settings_path: str | None = None, harness: str = "claude") -> int:
     path.write_text(json.dumps(_strip(_load(path)), indent=2) + "\n")
     print(f"removed good-cop hooks from {path}")
     return 0
+
+
+def rules_cmd(args) -> int:
+    import yaml
+    if args.rules_cmd == "list":
+        for name, p in config.rulesets().items():
+            doc = yaml.safe_load(p.read_text()) or {}
+            print(f"{name:<12} {len(doc.get('rules') or []):>2} rules  {doc.get('description', '')}")
+        return 0
+    path = config.rulesets()[args.ruleset] if args.ruleset else args.rules
+    rc = config.load_rules(path)
+    kinds = {}
+    for r in rc["rules"]:
+        kinds[rules_kind(r)] = kinds.get(rules_kind(r), 0) + 1
+    print(f"# {len(rc['rules'])} rules ({', '.join(f'{n} {k}' for k, n in kinds.items())})"
+          + (f", includes {rc['included']}" if rc.get("included") else ""))
+    out = {k: rc[k] for k in ("enforce", "defaults", "handlers", "rules") if rc.get(k) not in (None, {}, [])}
+    print(yaml.safe_dump(out, sort_keys=False, width=110, allow_unicode=True))
+    return 0
+
+
+def rules_kind(rule: dict) -> str:
+    from good_cop import rules
+    return rules.kind(rule)

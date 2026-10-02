@@ -36,7 +36,8 @@ def test_capture_session(home, payloads, fake_llm):
 
     # every PreToolUse produced a decision with the default rules
     decisions = store.read_jsonl(store.session_dir(sid) / "decisions.jsonl")
-    assert len(decisions) == 7 and all(d["action"] == "allow" for d in decisions)
+    assert len(decisions) == 7 and all(d["enforced"] == "allow" for d in decisions)
+    assert [d["action"] for d in decisions if d["action"] != "allow"] == ["log"]  # ./deploy.sh: runs_session_script
     assert all("hook_ms" in d for d in decisions)
 
 

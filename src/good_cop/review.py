@@ -61,7 +61,7 @@ def judge_name(rec: dict, res: dict) -> str:
 
 
 def threshold_for(rule: dict, source: str, rules_cfg: dict, judge_threshold) -> float:
-    return rules_mod._threshold(rule, source, rules_cfg["defaults"], judge_threshold, None)
+    return rules_mod.threshold(rule, source, rules_cfg["defaults"], judge_threshold if source == "model" else None)
 
 
 def build_queue(recs: list[dict], rules_cfg: dict, done: set, rule_filter: str | None = None,

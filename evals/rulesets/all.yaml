@@ -1,0 +1,3 @@
+# Every starter ruleset at once, for measuring them on real sessions (evals/rulesets/run.sh).
+include: [solo-dev, infra, data, unattended]
+defaults: {action: ask, on_trip: []}   # measure trips, not handlers
