@@ -26,3 +26,8 @@ def test_yaml_criteria_keys_are_strings(home):
     r = config.load_rules()["rules"][0]
     assert r["criteria"] == {"true": "it does", "false": "it does not"}
     assert "Yes means: it does" in judge.render({"question": r["question"], "criteria": r["criteria"]})
+
+
+def test_extract_json_skips_braces_in_prose():
+    text = 'The command checks `${ANTHROPIC_API_KEY:+yes}` without printing it.\n{"secret_exposure": 0.05}'
+    assert judge.parse(text, ["secret_exposure"]) == {"secret_exposure": 0.05}

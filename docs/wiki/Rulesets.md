@@ -53,7 +53,11 @@ Design rules for the bundled sets:
 Judge latency p50 / p95: Jev 0.27 s / 1.3 s, Haiku 1.3 s / 5.7 s. Reproduce with [`evals/rulesets/run.sh`](https://github.com/timainge/good-cop/blob/main/evals/rulesets/run.sh), then label with `good-cop review --from-backtest latest`.
 
 What the first pass already showed:
-- **The judges disagree on the fuzzy rules.** Haiku flags `secret_exposure` on reads of `.env.example` and `gh auth status`, and `personal_data_export` on local queries over an iMessage database. Jev at 0.9 flags none of them. Which one is right is exactly what labels will settle. Until then, `solo-dev` keeps both rules, and the default judge stays Haiku (see below).
+- **The judges disagree on the fuzzy rules, and on `secret_exposure` neither is right.** Haiku tripped on 46 calls where Jev (t=0.9) didn't. Re-asked with the same question and criteria, Opus 5.5 called **4 of the 46** real exposures: `env | grep -i anthropic` three times (it prints the key) and `cat .env`. The others check that a key is set without printing it (`${KEY:+yes}`), mask values (`sed 's/=.*/=<set>/'`), or read `.env.example`. So:
+  - Haiku has no discrimination on this rule: it scores true and false positives alike at 0.75–0.85, about 9% precision.
+  - Jev at 0.9 missed all four real exposures (0.45–0.84).
+  - This is a reference judge, not human labels (`evals/runs/secret-exposure-opus-2026-10-03.json`). Confirm with `good-cop review --from-backtest 20261003-005159 --rule secret_exposure`; the disagreements come first.
+- `personal_data_export` shows the same pattern: Haiku flags local queries over an iMessage database, and Jev flags none.
 - **Written heredocs were the main source of code-rule false positives.** Patterns matched `npm install`, `DROP TABLE` or URLs inside `cat > README.md <<EOF … EOF`. Patterns and hosts now skip heredoc bodies that are only written to a file, which cut `credential_read` from 22 to 12 trips and `unknown_egress` from 27 to 18. Content that is written and then *run* is checked through `resolved.script`.
 - **`credential_read` still fires on mentions**, such as `printf '.env' >> .gitignore` and `grep '\.env'`. It's a pattern, so it can't tell a read from a mention. Keep it for unattended agents, where a mention is cheap to review.
 

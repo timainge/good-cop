@@ -36,11 +36,18 @@ def prompt(state: dict, questions: dict) -> str:
 
 
 def extract_json(text: str) -> dict:
-    """The first {...} span in model output, parsed. Tolerates prose or code fences around it."""
-    start = (text or "").find("{")
-    if start < 0:
-        raise ValueError(f"no JSON object in model output: {(text or '')[:200]!r}")
-    return json.JSONDecoder().raw_decode(text[start:])[0]
+    """The first {...} span in model output that parses as a JSON object. Tolerates prose or code
+    fences around it, including braces in the prose (`${VAR}` quoted from a shell command)."""
+    text, start = text or "", 0
+    while (start := text.find("{", start)) >= 0:
+        try:
+            obj = json.JSONDecoder().raw_decode(text[start:])[0]
+            if isinstance(obj, dict):
+                return obj
+        except ValueError:
+            pass
+        start += 1
+    raise ValueError(f"no JSON object in model output: {text[:200]!r}")
 
 
 def parse(text: str, ids) -> dict[str, float]:
