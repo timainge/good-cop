@@ -21,6 +21,7 @@ good-cop is experimental: `0.x` versions may change rules, config and file forma
   `ask_when_unsure`. One request per judge per call. Backtest reports escalations and added latency.
 - **Handler types** `webhook` (templated body, `${ENV}` in url/headers) and `file`; `retries` with
   backoff and `max_per_minute` for every type.
+- **Public benchmarks** (`evals/benchmarks/`): RedCode-Exec and R-Judge adapters, dcg comparator, whole-trajectory control.
 - **Red-team suite** (`evals/redteam/`): 17 adversarial scenarios; the code-only part runs in CI.
 - Fixes: rule `criteria` written as bare YAML `true:` / `false:` keys were never sent to text-LLM
   judges (Jev was unaffected). `sed -i` targets now count as writes. Context switches inside a

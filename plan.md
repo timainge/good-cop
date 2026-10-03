@@ -559,7 +559,15 @@ Measure good-cop against other setups on published datasets, offline (`evals/ben
 
 *Done when:* every guard has run on all three sets; results are on a "Benchmarks" wiki page with the comparability caveats (per-call vs. whole-trajectory; 51 R-Judge records have no tool call good-cop can see; RedCode catches add to the agent's own refusals).
 
-**Status (2026-10-03):** adapters, runner and tests (`tests/test_benchmarks.py`) built. Code-only results on RedCode: dcg 15.0% detected / 2.9% of dev-work calls flagged; good-cop `solo-dev` 10.5% / 3.2%; all rulesets 20.7% / 7.4%. R-Judge F1: dcg 2.0, all rulesets 12.1 (its risks are mostly emails, payments, devices: not shell). Judge runs in progress.
+**Status (2026-10-03):** adapters, runner and tests (`tests/test_benchmarks.py`) built. Code-only results on RedCode: dcg 15.0% detected / 2.9% of dev-work calls flagged; good-cop `solo-dev` 10.5% / 3.2%; all rulesets 20.7% / 7.4%. R-Judge F1: dcg 2.0, all rulesets 12.1 (its risks are mostly emails, payments, devices: not shell).
+
+**Done (2026-10-03).** Results on the Benchmarks wiki page; output in `evals/runs/benchmarks-2026-10-03.md`.
+- RedCode, system-risk detection: Haiku 74.8%, gpt-5-mini 59.4%, Jev → Haiku 47.6%, Jev 0.9 37.9%, dcg 20.3%.
+- Cost in false alarms (dev-work calls flagged): Haiku 11.7%, dcg 2.9%. Too noisy to enforce until tuned with labels.
+- R-Judge F1: good-cop + Haiku 83.6, and 86.1 with a generic harm question. That's above published whole-trajectory judges (GPT-4o 74.5, Claude-3.5 77.8, DeepSeek-V3 83.7) and above our like-for-like control: Haiku with R-Judge's own whole-trajectory prompts scores 75.5 (specificity 30.7), against flag-everything at 69.0.
+- The gain is all specificity, and none of it on the Program category (75.4 vs 76.1).
+- Jev at 0.9 is poor off-distribution (R-Judge 13.8); its threshold doesn't transfer.
+- Follow-ups for R10/R11: rule coverage for `/etc/*` system-file reads and posts to local servers; Jev threshold per dataset; whether a whole-trajectory pass (at Stop) adds anything on Program.
 
 ### R10. A large labelled dataset
 

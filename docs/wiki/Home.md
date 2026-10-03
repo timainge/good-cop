@@ -17,6 +17,7 @@
 **Findings and background**
 - [Results: the judge comparison](Results)
 - [Red-team: what's caught when the agent is adversarial](Red-team)
+- [Benchmarks: RedCode and R-Judge against other setups](Benchmarks)
 - [Model strategy: LLMs vs decision models vs code](Model-Strategy)
 - [Use cases: when good-cop fits](Use-Cases)
 - [Harness research: Codex, Cursor, Copilot, OpenCode](Harness-Research)

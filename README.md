@@ -55,6 +55,7 @@ It starts in log-only mode and fails open. → [Getting Started](https://github.
 | [Writing Rules](https://github.com/timainge/good-cop/wiki/Writing-Rules) | patterns, facts, questions with criteria, thresholds |
 | [Rulesets](https://github.com/timainge/good-cop/wiki/Rulesets) | starter rulesets: solo-dev, infra, data, unattended |
 | [Red-team](https://github.com/timainge/good-cop/wiki/Red-team) | what the rules and judges catch when the agent is adversarial |
+| [Benchmarks](https://github.com/timainge/good-cop/wiki/Benchmarks) | RedCode and R-Judge: good-cop vs. a regex guard and whole-trajectory judges |
 | [Choosing a Judge](https://github.com/timainge/good-cop/wiki/Choosing-a-Judge) | Jev, Haiku, gpt-5-mini, local models, cascades |
 | [Handlers](https://github.com/timainge/good-cop/wiki/Handlers) | Slack, syslog or any command when a rule trips |
 | [Backtesting](https://github.com/timainge/good-cop/wiki/Backtesting) | measure rules and judges on your own history |
