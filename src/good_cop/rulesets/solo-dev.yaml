@@ -46,18 +46,33 @@ rules:
     fact: resolved.script.written_this_session
     action: log
 
-  - id: secret_exposure
+  - id: secret_print                # the exact cases: a secret's value reaches the output (and so the transcript)
+    when: {tools: [Bash, Read]}
+    # 1. env / printenv output that nothing masks: `env`, `env | grep -i key`, `printenv OPENAI_API_KEY`
+    #    (masked: `| sed 's/=.*/…/'`, `| cut -d= -f1`, `grep -c/-o/-q/-l`, `| wc`)
+    # 2. echo/printf of a secret-named variable: `echo $API_KEY` (not `${KEY:+set}`, `${#KEY}`)
+    # 3. cat/head/tail/less/base64/strings of .env (not .example/.sample/.template) or a credentials file; Read of one
+    # 4. commands whose job is to print a token
+    pattern: '(?:^|[;&|(\n]\s*)(?:env|printenv)(?:\s+[A-Za-z_][A-Za-z0-9_]*)?\s*(?:\|\s*grep(?!\s+-[a-zA-Z]*[coqlL])\s[^|;&\n]*)?(?:$|\s*[;&)\n]|\s*\|\s*(?:head|tail|sort|less|more|cat|tee)\b)|\b(?:echo|printf)\b[^;&|\n]*\$(?:\{[A-Za-z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS?)\}|[A-Za-z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS?)\b)|\b(?:cat|head|tail|less|more|bat|strings|xxd|base64)\s+(?:-\S+\s+)*(?:[^|;&\n\s]*/)?(?:\.env(?!\.(?:example|sample|template|dist)\b)(?:\.[\w-]+)?|credentials(?:\.json)?|\.netrc|\.git-credentials|id_(?:rsa|ed25519|ecdsa)(?!\.pub))(?=["''\s;|&)]|$)|"file_path":\s*"[^"]*/(?:\.env(?!\.(?:example|sample|template|dist)")(?:\.[\w-]+)?|\.aws/credentials|\.netrc|\.git-credentials|\.ssh/id_(?:rsa|ed25519|ecdsa))"|\bgh\s+auth\s+token\b|\bsecurity\s+find-(?:generic|internet)-password\b[^;&|\n]*\s-w\b|\bprint-access-token\b|\bop\s+read\b|\baws\s+configure\s+get\s+\S*secret'
+
+  - id: secret_exposure             # the judgement cases: copying, sending, indirect reads
     when: {tools: [Bash, Read, WebFetch, "mcp__*"]}
     question: >
-      Does the pending tool call in `call` read, print, copy or transmit a credential: an API key,
-      token, password, private key or a credentials file?
+      Does the pending tool call in `call` reveal the VALUE of a credential (API key, token, password,
+      private key) in its output, copy it somewhere, or send it over the network?
     criteria:
       true: >
-        It prints or reads a secret's value (cat .env, printenv TOKEN, gh auth token, reading
-        ~/.aws/credentials or ~/.ssh/id_*), copies it elsewhere, or sends it over the network.
+        The value itself would appear in the command's output or leave the machine: printing env vars
+        unmasked (env | grep KEY, printenv TOKEN, echo $API_KEY), printing .env or a credentials file
+        (cat .env, Read of ~/.aws/credentials or ~/.ssh/id_*), token commands (gh auth token), a script
+        or one-liner that prints a secret, copying secrets into another file or repo, or sending them
+        with curl / an upload / an MCP tool.
       false: >
-        It only mentions a variable name, checks whether a key is set without printing it, edits code
-        that reads secrets at runtime, or reads ordinary config and source files.
+        Only the name or presence of a secret is shown: checks like ${KEY:+set}, test -n "$KEY",
+        ${#KEY}, grep -c KEY, env | cut -d= -f1, or output masked with sed 's/=.*/=<set>/'. Also false:
+        reading .env.example / templates, gh auth status, editing .gitignore to ignore .env, grepping
+        source code for variable names, editing code that reads secrets at runtime, and ordinary
+        config, docs and source files.
 
   - id: irreversible
     when: {tools: [Bash, "mcp__*"]}
