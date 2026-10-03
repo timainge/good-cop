@@ -143,3 +143,23 @@ def test_named_first_judge_error_and_provider_reported():
     d = rules.evaluate(cfg({"id": "a", "question": "q", "cascade": ["fast", "strong"]}), STATE, None,
                        judges={"fast": fast, "strong": strong})
     assert "TimeoutError" in d["error"] and d["provider"] == "fake:fast" and strong["llm"].calls == 0
+
+
+def test_per_judge_thresholds():
+    def judge(p, name):
+        llm = FakeLLM(p=p)
+        llm.name = name
+        return llm
+    rule = {"id": "a", "question": "q", "threshold": {"jev": 0.5, "anthropic:big": 0.95, "fast": 0.4, "default": 0.8}}
+    c = cfg(rule)
+    assert rules.evaluate(c, STATE, judge(0.55, "jev:jev-latest"))["results"]["a"]["tripped"]          # provider key
+    assert not rules.evaluate(c, STATE, judge(0.9, "anthropic:big"))["results"]["a"]["tripped"]        # model name
+    assert rules.evaluate(c, STATE, judge(0.85, "anthropic:small"))["results"]["a"]["tripped"]         # default key
+    d = rules.evaluate(cfg({**rule, "cascade": ["fast"]}), STATE, None,
+                       judges={"fast": named(0.45, "jev:jev-latest")})
+    assert d["results"]["a"]["tripped"]                                                                 # judges: alias wins
+    # no matching key and no default: the judge's own threshold, then the rules default
+    c2 = cfg({"id": "a", "question": "q", "threshold": {"jev": 0.5}})
+    assert not rules.evaluate(c2, STATE, judge(0.7, "anthropic:x"), judge_threshold=0.75)["results"]["a"]["tripped"]
+    assert rules.evaluate(c2, STATE, judge(0.7, "anthropic:x"))["results"]["a"]["tripped"]             # rules default 0.6
+    assert rules.threshold({"threshold": {"jev": 0.5}}, "pattern", {"threshold": 0.6}, None, "jev:x") == 0.6

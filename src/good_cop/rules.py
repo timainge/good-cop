@@ -210,7 +210,9 @@ def evaluate(rules_cfg: dict, state: dict, llm=None, timeout: float = 3.0,
         if not res:
             continue
         judge_name = res.get("judge") or ("escalate" if res["source"] == "escalated" else "default")
-        t = threshold(r, res["source"], defaults, registry.get(judge_name, {}).get("threshold"))
+        j = registry.get(judge_name, {})
+        t = threshold(r, res["source"], defaults, j.get("threshold"), getattr(j.get("llm"), "name", None),
+                      judge_name if judge_name not in ("default", "escalate") else None)
         res["tripped"] = res["p"] is not None and res["p"] >= t
         a = r.get("action", defaults["action"]) if res["tripped"] else None
         if not res["tripped"] and r.get("ask_when_unsure") and res["p"] is not None and r["id"] in bands:
@@ -244,10 +246,19 @@ def evaluate(rules_cfg: dict, state: dict, llm=None, timeout: float = 3.0,
     return out
 
 
-def threshold(rule: dict, source: str, defaults: dict, judge_threshold: float | None = None) -> float:
-    """A rule's own threshold, else the answering judge's calibrated one, else the rules default."""
-    if "threshold" in rule:
-        return rule["threshold"]
+def threshold(rule: dict, source: str, defaults: dict, judge_threshold: float | None = None,
+              judge: str | None = None, alias: str | None = None) -> float:
+    """A rule's own threshold, else the answering judge's calibrated one, else the rules default.
+
+    A rule's threshold may be a number or a map keyed by judge, most specific first: the named judge
+    from `judges:` (alias, e.g. `fast`), the model name (`jev:jev-latest`), the provider (`jev`),
+    then `default`:  `threshold: {jev: 0.5, default: 0.7}`."""
+    t = rule.get("threshold")
+    if isinstance(t, dict):
+        keys = (alias, judge, (judge or "").split(":")[0]) if source in ("model", "escalated") else ()
+        t = next((t[k] for k in keys if k and k in t), t.get("default"))
+    if t is not None:
+        return t
     if source in ("model", "escalated") and judge_threshold is not None:
         return judge_threshold
     return defaults["threshold"]

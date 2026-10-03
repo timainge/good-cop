@@ -72,7 +72,22 @@ The rule trips if **any** value at the path meets the condition (so `not_in` / `
 - Point at state paths in backticks (`call.input.command`, `ledger.files_written`).
 
 ## Thresholds
-A question rule trips when the judge's probability ≥ threshold. Precedence: the rule's own `threshold`, then the judge's calibrated `judge.threshold` in config, then `defaults.threshold`. LLMs answer near 0/1; decision models return graded probabilities and need a higher threshold (Jev ~0.85–0.9, Kev ~0.7).
+A question rule trips when the judge's probability ≥ threshold. Precedence: the rule's own `threshold`, then the judge's calibrated `judge.threshold` in config, then `defaults.threshold`.
+
+The best threshold depends on the rule *and* the judge. Jev's best on `secret_exposure` is 0.5, against ~0.9 on most rules. So a rule's threshold can be a map keyed by judge:
+
+```yaml
+- id: secret_exposure
+  threshold: {jev:jev-latest: 0.5, anthropic: 0.7, default: 0.8}
+```
+
+Keys are matched most specific first:
+1. a named judge from `judges:` (e.g. `fast`);
+2. the model name (`jev:jev-latest`);
+3. the provider (`jev`, `anthropic`, `openai`, `ollama`);
+4. `default`.
+
+With no match, the judge's own `judge.threshold` applies, then `defaults.threshold`. Kev uses the `jev` provider, so a plain `jev` key covers it too; use `jev:jev-latest` to target Jev alone. LLMs answer near 0/1; decision models return graded probabilities and need a higher threshold (Jev ~0.85–0.9, Kev ~0.7).
 
 ## When a rule trips
 `action` decides what the agent sees. To also notify you (Slack, syslog, …), add `on_trip: [handler-name]`. See [[Handlers]].

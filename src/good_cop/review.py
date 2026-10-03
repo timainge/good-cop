@@ -61,8 +61,8 @@ def judge_name(rec: dict, res: dict) -> str:
     return rec["provider"] if res.get("source") in ("model", "escalated") else res.get("source", "?")
 
 
-def threshold_for(rule: dict, source: str, rules_cfg: dict, judge_threshold) -> float:
-    return rules_mod.threshold(rule, source, rules_cfg["defaults"], judge_threshold)
+def threshold_for(rule: dict, source: str, rules_cfg: dict, judge_threshold, judge: str | None = None) -> float:
+    return rules_mod.threshold(rule, source, rules_cfg["defaults"], judge_threshold, judge)
 
 
 def build_queue(recs: list[dict], rules_cfg: dict, done: set, rule_filter: str | None = None,
@@ -79,7 +79,7 @@ def build_queue(recs: list[dict], rules_cfg: dict, done: set, rule_filter: str |
                 continue
             it = items.setdefault(key, {"session": key[0], "seq": key[1], "rule": rid, "answers": {}, "margin": 1.0})
             it["answers"][judge_name(rec, res)] = (res["p"], bool(res.get("tripped")))
-            t = threshold_for(by_rule[rid], res.get("source", "model"), rules_cfg, judge_threshold)
+            t = threshold_for(by_rule[rid], res.get("source", "model"), rules_cfg, judge_threshold, rec.get("provider"))
             it["margin"] = min(it["margin"], abs(res["p"] - t))
     groups = {"disagree": [], "tripped": [], "near": [], "negative": []}
     for it in items.values():

@@ -13,7 +13,7 @@ good-cop is experimental: `0.x` versions may change rules, config and file forma
 - New default rules: `tamper_write` / `tamper_command` (edits to good-cop's or the harness's hook
   config), `inline_prod_env` (`AWS_PROFILE=prod aws …`), `destructive_script` (rm -rf ~ or curl|sh
   inside a script being run), `force_push_main`, `pipe_to_shell`, `runs_session_script` (log).
-- Rules: `when.command` regex scoping; fact conditions `not_in` / `not_matches`; state gains
+- Rules: per-judge thresholds (`threshold: {jev:jev-latest: 0.5, anthropic: 0.7, default: 0.8}`); `when.command` regex scoping; fact conditions `not_in` / `not_matches`; state gains
   `resolved.hosts`, `resolved.env` and `resolved.commands` (quotes removed, variables substituted,
   so `r''m -rf ~` and `X=rm; $X -rf ~` match patterns). Patterns ignore heredoc bodies that are only
   written to a file.
