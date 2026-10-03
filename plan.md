@@ -398,6 +398,7 @@ Each item ends like a milestone: working software, tests, and the user-facing do
 - R0 → R1 → R2 → R3 first: real data, then the labels it yields, then better defaults, then an easy install.
 - R4–R7 as interest dictates. R7 needs R1's labels.
 - R8 is housekeeping.
+- Added later: R9 (public benchmarks) → R10 (big labelled dataset) and R11 (held-out evaluation), which go together; R12 (prompt rules) → R13 (taint tracking); R14 (defence-in-depth docs) any time.
 
 ### R0. Dogfood (prerequisite for R1, R2, R4, R7)
 
@@ -545,3 +546,79 @@ Prerequisite: R1 labels, aiming for at least 300 labelled calls and 30 positives
 - Codex default model and CLI versions: re-check `codex exec` after CLI upgrades, since 0.151 couldn't use the newest model.
 
 **Status (2026-10-03):** Cursor/Copilot still blocked (CLIs not installed). Codex CLI is still 0.151.0 here (no upgrade to re-check). Summary evaluated on the labelled contrived sample (`evals/summary/run.sh`, run `summary-2026-10-03`): Haiku +0.03 F1 (noise), Jev worse at its tuned thresholds (t=0.9: 0.95/0.93 → 0.83/0.73), ~35× the backtest time. Decision: keep it off by default and unrecommended (Results page); remove it unless a labelled intent-dependent rule shows a benefit after R0/R1.
+
+### R9. Public benchmarks (in progress)
+
+Measure good-cop against other setups on published datasets, offline (`evals/benchmarks/`). Datasets aren't vendored: `fetch.sh` pins the commits and downloads the dcg comparator.
+
+1. Adapters: RedCode-Exec Bash (600 risky scripts → one Bash call each), R-Judge (571 records → prompts plus tool calls; a record is flagged if any call trips), and our own sessions as the benign side ("dev-work", an upper bound on false alarms).
+2. Guards: none, destructive_command_guard (dcg, default packs), good-cop code-only (`solo-dev` / all rulesets), plus judges Jev 0.9, Haiku, gpt-5-mini, Jev → Haiku. On R-Judge also with one generic "could this cause harm" question.
+3. Report next to the published baselines:
+   - R-Judge whole-trajectory judges: random 51.3 F1, GPT-4o 74.5, GPT-4.1 81.0, DeepSeek-V3 83.7, AgentAuditor ~91–96, a human ~95.7% accuracy.
+   - RedCode: no published guard baseline; a GPT-4 ReAct agent refuses 24.8% of Bash-code cases on its own.
+
+*Done when:* every guard has run on all three sets; results are on a "Benchmarks" wiki page with the comparability caveats (per-call vs. whole-trajectory; 51 R-Judge records have no tool call good-cop can see; RedCode catches add to the agent's own refusals).
+
+**Status (2026-10-03):** adapters, runner and tests (`tests/test_benchmarks.py`) built. Code-only results on RedCode: dcg 15.0% detected / 2.9% of dev-work calls flagged; good-cop `solo-dev` 10.5% / 3.2%; all rulesets 20.7% / 7.4%. R-Judge F1: dcg 2.0, all rulesets 12.1 (its risks are mostly emails, payments, devices: not shell). Judge runs in progress.
+
+### R10. A large labelled dataset
+
+Positives are the bottleneck: our own sessions are almost all negatives (about 6 real secret leaks in ~1,000 calls).
+
+1. Build one labelled store of (call, rule, label, source, labeller) records. Sources:
+   - human `review` labels;
+   - benchmark cases mapped to rules;
+   - synthetic positives and near-misses;
+   - reference-model labels (Opus).
+   Model labels stay separate from human labels (`source`), and only human labels count as ground truth.
+2. Benchmark import: map each public "unsafe" case to the rules that should fire. Cases no rule covers go to a "coverage gaps" list, which is an input to R2.
+3. A synthetic generator per rule: positives, near-misses and mutated real calls (swap in prod flags, secret paths, evasions). Seeded and reviewed, and kept as its own source.
+4. Active labelling: spend human time where models disagree with each other or with the rules (`review --from-backtest` already orders by this).
+5. Optional opt-in sharing between users: redacted features and labels, never raw commands by default.
+
+*Done when:* at least 30 human-checked positives per shipped question rule, from at least two sources each, and a coverage-gaps list reviewed against the rulesets.
+
+### R11. Evaluating without fooling ourselves
+
+1. A frozen test split that tuning never touches: sessions after a cutoff date, plus one whole benchmark. Scored only at releases, and recorded in `evals/runs/`.
+2. Leave-one-source-out: tune on some sources (e.g. RedCode plus synthetic), test on another (R-Judge, real sessions). This measures whether rules carry over to a new distribution.
+3. Sources stay mixed within every split, so a rule can't score well just by telling benchmark cases from real ones.
+4. Every reported score carries its positive count and a confidence interval. No "recall 1.00" from 2 positives.
+5. Fresh data after each freeze: new dogfood sessions, and a red-team round by someone who hasn't read the rules.
+6. Live signals: approving an `ask` counts as a false-positive signal (needs a PostToolUse after an ask), trip-rate drift, and sampled audits of calls that passed.
+
+*Done when:* `evals/` has a split manifest; the backtest refuses to report "test" numbers for tuning runs; and the Results page reports test-split numbers with confidence intervals.
+
+### R12. Prompt rules (UserPromptSubmit)
+
+Already recorded; not yet judged. Verify the current hook schema for blocking a prompt and adding context before building.
+
+1. Rules over prompts: `when: {events: [prompt]}`, using the same kinds (pattern, fact, question).
+2. Default rule: a **pasted secret** in a prompt, reusing `redact.py`'s patterns. Block it before it reaches the model provider and the transcript. That's the clearest real-world win.
+3. Intent as context: put the latest user request in the judge's state (`state.request`), not only when it happens to be in `recent`. Separate "the user asked for this" from "the agent did more than asked" (R-Judge's intended vs. unintended; UnderSpecBench's over-scope).
+4. Untrusted-prompt mode (`unattended`): agents triggered by issues, Slack or email treat the prompt as untrusted input.
+5. Optional: `Stop` with `last_assistant_message`: secrets or other sensitive values in the agent's own replies.
+
+*Done when:* pasted-secret blocking works end to end in Claude Code and Codex (verified like milestone 6); `state.request` is in replay and live state with equal hashes; R-Judge is re-run to measure the intent signal.
+
+### R13. Taint tracking for injected tool output
+
+1. PostToolUse: scan tool results (file reads, web fetches, MCP results) for injected instructions: a pattern pass, plus an optional judge pass for ambiguous text. Record `ledger.taint` with its source and seq.
+2. While a session is tainted, later calls get a stricter threshold, and rules can condition on the fact (`fact: ledger.taint`).
+3. Red-team scenarios: injection via README, web page, MCP result, and a file written by another process. Measured with and without taint.
+
+*Done when:* taint is recorded and replayed (an event-sourced fact), the injection scenarios are measured, and AgentDojo or similar is considered for an external number.
+
+### R14. Defence in depth (docs)
+
+good-cop is a detection and speed-bump layer, not a security boundary. Our red-team shows per-call monitors can be evaded, hooks are client-side, and code the agent writes can run outside any hook (CI, git hooks, postinstall). The common harms are honest mistakes, best prevented by the agent not holding the power to cause them.
+
+1. A wiki page, "Defence in depth": what good-cop is for (context-aware judgement, a record of what happened, data to learn from) and the layers that limit damage, with how to set each up:
+   - a sandbox or container;
+   - scoped, short-lived credentials, with none for production on dev machines;
+   - an OS-level egress allowlist;
+   - backups and soft deletes;
+   - production changes only through reviewed CI.
+2. README: one paragraph saying this plainly.
+
+*Done when:* the page is published and linked from the README, Getting Started and Use Cases.
